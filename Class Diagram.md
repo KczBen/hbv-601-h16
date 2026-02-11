@@ -2,14 +2,14 @@
 classDiagram
     User "1" *-- "*" Recipe
     User "1" *-- "*" RecipeBook
-    
+
     RecipeBook "1" *-- "*" Recipe
-    
+
     Recipe "1" *-- "" Like
     Recipe "1" *-- "*" Comment
     Recipe "1" *-- "*" Category
     Recipe "1" *-- "*" Rating
-    
+
     Comment "1" *-- "*" Like
 
     class User {
@@ -27,7 +27,7 @@ classDiagram
         +Boolean isBanned
         +Boolean isAdmin
     }
-    
+
     class RecipeBook {
         +UUID id
         +User owner
@@ -56,7 +56,7 @@ classDiagram
         +User owner
         +Recipe recipe
     }
-    
+
     class Comment {
         +UUID id
         +User owner
@@ -66,13 +66,13 @@ classDiagram
         +String textContent
         +Set<String> images
     }
-    
+
     class Category {
         +UUID id
         +String name
         +Set<Recipe> recipes
     }
-    
+
     class Rating {
         +UUID id
         +User owner
@@ -88,98 +88,98 @@ classDiagram
 classDiagram
     CategoryController --> CategoryService
     CategoryService <|-- CategoryServiceImplementation
-    
+
     LikeController --> LikeService
     LikeService <|-- LikeServiceImplementation
-    
+
     RecipeBookController --> RecipeBookService
     RecipeBookService <|-- RecipeBookServiceImplementation
-    
+
     RecipeController --> RecipeService
     RecipeService <|-- RecipeServiceImplementation
-    
+
     UserController --> UserService
-    UserService <|-- UserSeviceImplementation
-    
+    UserService <|-- UserServiceImplementation
+
     CommentController --> CommentService
     CommentService <|-- CommentServiceImplementation
-    
+
     AuthController --> AuthService
     AuthService <|-- AuthServiceImplementation
-    
+
     ModerationController --> ModerationService
     ModerationService <|-- ModerationServiceImplementation
-    
-    
+
+
     class CategoryController {
     }
-    
+
     class CategoryService {
     }
-    
+
     class CategoryServiceImplementation{
     }
-    
+
     class LikeController{
     }
-    
+
     class LikeService{
     }
-    
+
     class LikeServiceImplementation{
     }
-    
+
     class RecipeBookController{
     }
-    
+
     class RecipeBookService{
     }
-    
+
     class RecipeBookServiceImplementation{
     }
-    
+
     class CommentController{
     }
-    
+
     class CommentService{
     }
-    
+
     class CommentServiceImplementation{
     }
-    
+
     class UserController{
     }
-    
+
     class UserService{
     }
-    
-    class UserSeviceImplementation{
+
+    class UserServiceImplementation{
     }
-    
+
     class RecipeController{
     }
-    
+
     class RecipeService{
     }
-    
+
     class RecipeServiceImplementation{
     }
-    
+
     class AuthController{
     }
-    
+
     class AuthService{
     }
-    
+
     class AuthServiceImplementation{
     }
-    
+
     class ModerationController{
     }
-    
+
     class ModerationService{
     }
-    
+
     class ModerationServiceImplementation{
     }
 ```
