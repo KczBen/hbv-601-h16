@@ -13,173 +13,356 @@ classDiagram
     Comment "1" *-- "*" Like
 
     class User {
-        +UUID id
-        +String userName
-        +String email
-        +String passwordHash
-        +String profilePictureUrl
-        +String bio
-        +Set<Recipe> myRecipes
-        +Set<RecipeBook> recipeBooks
-        +Set<Recipe> likedRecipes
-        +Set<User> following
-        +Set<User> followers
-        +Boolean isBanned
-        +Boolean isAdmin
+        +id : UUID
+        +userName : String
+        +email : String
+        +passwordHash : String
+        +profilePictureUrl : String
+        +bio : String
+        +myRecipes : Set<Recipe>
+        +recipeBooks : Set<RecipeBook>
+        +likedRecipes : Set<Recipe>
+        +following : Set<User>
+        +followers : Set<User>
+        +isBanned : Boolean
+        +isAdmin : Boolean
     }
 
     class RecipeBook {
-        +UUID id
-        +User owner
-        +String name
-        +Set<Recipe> recipes
-        +Boolean isPublic
+        +id : UUID
+        +owner : User
+        +name : String
+        +recipes : Set<Recipe>
+        +isPublic : Boolean
     }
 
     class Recipe {
-        +UUID id
-        +User owner
-        +String title
-        +String textContent
-        +Set<String> images
-        +LocalDateTime creationDate
-        +LocalDateTime editDate
-        +Set<Like> likes
-        +Float rating
-        +Long ratingCount
-        +Set<Comment> comments
-        +Set<Category> categories
+        +id : UUID
+        +owner : User
+        +title : String
+        +textContent : String
+        +images : Set<String>
+        +creationDate : LocalDateTime
+        +editDate : LocalDateTime
+        +likes : Set<Like>
+        +rating : Float
+        +ratingCount : Long
+        +comments : Set<Comment>
+        +categories : Set<Category>
     }
 
     class Like {
-        +Long id
-        +User owner
-        +Recipe recipe
+        +id : Long
+        +owner : User
+        +recipe : Recipe
     }
 
     class Comment {
-        +UUID id
-        +User owner
-        +Recipe recipe
-        +LocalDateTime creationDate
-        +LocalDateTime editDate
-        +String textContent
-        +Set<String> images
+        +id : UUID
+        +owner : User
+        +recipe : Recipe
+        +creationDate : LocalDateTime
+        +editDate : LocalDateTime
+        +textContent : String
+        +images : Set<String>
     }
 
     class Category {
-        +UUID id
-        +String name
-        +Set<Recipe> recipes
+        +id : UUID
+        +name : String
+        +recipes : Set<Recipe>
     }
 
     class Rating {
-        +UUID id
-        +User owner
-        +Recipe recipe
-        +int value
+        +id : UUID
+        +owner : User
+        +recipe : Recipe
+        +value : int
     }
 ```
 
-<!-- page break please? no? ok...-->
-<div style="page-break-after: always;"></div>
-
 ```mermaid
 classDiagram
-    CategoryController --> CategoryService
+    ViewFeedActivity --> RecipeService
+
+    ViewRecipeActivity --> RecipeService
+    ViewRecipeActivity --> CommentService
+    ViewRecipeActivity --> LikeService
+    ViewRecipeActivity --> UserService
+
+    CreateRecipeActivity --> RecipeService
+    CreateRecipeActivity --> CategoryService
+    CreateRecipeActivity --> UserService
+
+    CreateCommentActivity --> CommentService
+
+    ViewProfileActivity --> UserService
+
+    EditProfileActivity --> UserService
+
+    RecipeBookActivity --> RecipeBookService
+    RecipeBookActivity --> RecipeService
+
+    SearchActivity --> CategoryService
+
+    AuthActivity --> AuthService
+
+
     CategoryService <|-- CategoryServiceImplementation
-
-    LikeController --> LikeService
     LikeService <|-- LikeServiceImplementation
-
-    RecipeBookController --> RecipeBookService
     RecipeBookService <|-- RecipeBookServiceImplementation
-
-    RecipeController --> RecipeService
     RecipeService <|-- RecipeServiceImplementation
-
-    UserController --> UserService
     UserService <|-- UserServiceImplementation
-
-    CommentController --> CommentService
     CommentService <|-- CommentServiceImplementation
-
-    AuthController --> AuthService
     AuthService <|-- AuthServiceImplementation
 
-    ModerationController --> ModerationService
-    ModerationService <|-- ModerationServiceImplementation
+    AuthServiceImplementation --> UserRepository
+    CategoryServiceImplementation --> CategoryRepository
+    CommentServiceImplementation --> CommentRepository
+    LikeServiceImplementation --> LikeRepository
+    LikeServiceImplementation --> RecipeRepository
+    RecipeBookServiceImplementation --> RecipeBookRepository
+    RecipeBookServiceImplementation --> RecipeRepository
+    RecipeServiceImplementation --> RecipeRepository
+    UserServiceImplementation --> UserRepository
 
-
-    class CategoryController {
+    class ViewFeedActivity{
+        -onCreate(savedInstanceState : Bundle?)
     }
 
-    class CategoryService {
+    class SearchActivity{
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class ViewRecipeActivity{
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class CreateRecipeActivity{
+        -recipeTextField : TextField
+
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class CreateCommentActivity{
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class ViewProfileActivity{
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class EditProfileActivity{
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class RecipeBookActivity{
+        -onCreate(savedInstanceState : Bundle?)
+    }
+
+    class AuthActivity{
+        -registerButton : Button
+        -logInButton : Button
+
+        -nameField : TextField
+        -passwordField : TextField
+        -emailField : TextField
+
+        -onCreate(savedInstanceState : Bundle?)
+        -onClick(v : View)
+    }
+
+    class CategoryService{
+        <<interface>>
+
+        createCategory(category : Category)
+        deleteCategory(category : Category)
+        findCategoryByID(id : UUID)
+        findCategoryByName(name : String)
+        getAllCategories(page : int, pageSize : int)
+        getRecipesForCategory(categoryId : UUID)
+        getRecipesForCategory(name : String)
     }
 
     class CategoryServiceImplementation{
-    }
-
-    class LikeController{
+        + createCategory(category : Category)
+        + deleteCategory(category : Category)
+        + findCategoryByID(id : UUID)
+        + findCategoryByName(name : String)
+        + getAllCategories(page : int, pageSize : int)
+        + getRecipesForCategory(categoryId : UUID)
+        + getRecipesForCategory(name : String)
     }
 
     class LikeService{
+        <<interface>>
+
+        getLikesForRecipe(recipe : Recipe)
+        likeRecipe(user : User, recipe : Recipe)
+        unlikeRecipe(user : User, recipe : Recipe)
+        getLikeById(id : UUID)
     }
 
     class LikeServiceImplementation{
-    }
-
-    class RecipeBookController{
+        + getLikesForRecipe(recipe : Recipe)
+        + likeRecipe(user : User, recipe : Recipe)
+        + unlikeRecipe(user : User, recipe : Recipe)
+        + getLikeById(id : UUID)
     }
 
     class RecipeBookService{
+        <<interface>>
+
+        createRecipeBook(RecipeBook recipeBook)
+        modifyRecipeBook(RecipeBook recipeBook)
+        getAllRecipeBooks(int page, int pageSize)
+        getRecipeBookById(id : UUID)
+        getRecipeBooksByUser(userId : UUID)
+        deleteRecipeBook(owner : User, recipeBook : RecipeBook)
+        removeRecipe(userId : UUID, bookId : UUID, recipeId : UUID)
+        addRecipe(userId : UUID, bookId : UUID, recipeId : UUID)
     }
 
     class RecipeBookServiceImplementation{
-    }
-
-    class CommentController{
+        + createRecipeBook(RecipeBook recipeBook)
+        + modifyRecipeBook(RecipeBook recipeBook)
+        + getAllRecipeBooks(int page, int pageSize)
+        + getRecipeBookById(id : UUID)
+        + getRecipeBooksByUser(userId : UUID)
+        + deleteRecipeBook(owner : User, recipeBook : RecipeBook)
+        + removeRecipe(userId : UUID, bookId : UUID, recipeId : UUID)
+        + addRecipe(userId : UUID, bookId : UUID, recipeId : UUID)
     }
 
     class CommentService{
+        <<interface>>
+
+        createComment(comment : Comment)
+        deleteComment(user : User, comment : Comment)
+        getSingleComment(id : UUID)
+        getAllCommentsForRecipe(recipe : Recipe, page : int, pageSize : int)
+        getAllCommentsForRecipe(recipeId : UUID, page : int, pageSize : int)
+        modifyComment(user : User, comment : Comment)
     }
 
     class CommentServiceImplementation{
-    }
-
-    class UserController{
+        + createComment(comment : Comment)
+        + deleteComment(user : User, comment : Comment)
+        + getSingleComment(id : UUID)
+        + getAllCommentsForRecipe(recipe : Recipe, page : int, pageSize : int)
+        + getAllCommentsForRecipe(recipeId : UUID, page : int, pageSize : int)
+        + modifyComment(user : User, comment : Comment)
     }
 
     class UserService{
+        <<interface>>
+
+        createUser(user : User)
+        modifyUser(requester : User, userToModify : User)
+        deleteUser(requester : User, userToDelete : User)
+        getUserById(id : UUID)
+        getUserByName(name : String)
+        getAllUsers(page : int, pageSize : int)
     }
 
     class UserServiceImplementation{
-    }
-
-    class RecipeController{
+        + createUser(user : User)
+        + modifyUser(requester : User, userToModify : User)
+        + deleteUser(requester : User, userToDelete : User)
+        + getUserById(id : UUID)
+        + getUserByName(name : String)
+        + getAllUsers(page : int, pageSize : int)
     }
 
     class RecipeService{
+        <<interface>>
+
+        createRecipe(recipe : Recipe)
+        getSingleRecipe(id : UUID)
+        findByTitle(title : String)
+        deleteRecipe(user : User, recipe : Recipe)
+        getAllRecipes(page : int, pageSize : int)
+        getRecipeByCategory(categories : Set<Category>)
+        getUserRecipes(user : User)
+        modifyRecipe(user : User, recipe : Recipe)
+        getCategoriesForRecipe(recipe : Recipe)
     }
 
     class RecipeServiceImplementation{
-    }
-
-    class AuthController{
+        + createRecipe(recipe : Recipe)
+        + getSingleRecipe(id : UUID)
+        + findByTitle(title : String)
+        + deleteRecipe(user : User, recipe : Recipe)
+        + getAllRecipes(page : int, pageSize : int)
+        + getRecipeByCategory(categories : Set<Category>)
+        + getUserRecipes(user : User)
+        + modifyRecipe(user : User, recipe : Recipe)
+        + getCategoriesForRecipe(recipe : Recipe)
     }
 
     class AuthService{
+        <<interface>>
+
+        registerUser(name : String, email : String, password : String)
+        logInUser(name: String, password : String)
     }
 
     class AuthServiceImplementation{
+        + registerUser(name : String, email : String, password : String)
+        + logInUser(name: String, password : String)
+
+        - verifyPasswordRules(password : String)
     }
 
-    class ModerationController{
+    class CategoryRepository{
+        - localStorage : SQL
+        - remoteStorage : API
+
+        + findByName(name : String)
     }
 
-    class ModerationService{
+    class CommentRepository{
+        - localStorage : SQL
+        - remoteStorage : API
+
+        + findByRecipeId(recipeId : UUID)
+        + findByOwnerId(ownerId : UUID)
+        + findByRecipe(recipe : Recipe)
+        + findByOwner(owner : User)
     }
 
-    class ModerationServiceImplementation{
+    class LikeRepository{
+        - localStorage : SQL
+        - remoteStorage : API
+
+        + findByOwnerAndRecipe(owner : User, recipe : Recipe)
+        + findByOwner(owner : User)
+        + findByRecipe(recipe : Recipe)
+    }
+
+    class RecipeBookRepository{
+        - localStorage : SQL
+        - remoteStorage : API
+
+        + findByOwnerId(ownerId : UUID)
+        + findByIdAndOwner_Id(bookId : UUID, ownerId : UUID)
+    }
+
+    class RecipeRepository{
+        - localStorage : SQL
+        - remoteStorage : API
+
+        + findByTitle(title : String)
+        + findById(id : UUID)
+        + findByOwner(user : User)
+        + findByCategories(categories : Set<Category>)
+        + getCategoriesForRecipe(recipe : Recipe)
+    }
+
+    class UserRepository{
+        - localStorage : SQL
+        - remoteStorage : API
+
+        + findByUserName(userName : String)
     }
 ```
