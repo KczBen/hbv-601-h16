@@ -29,5 +29,10 @@
             android:exported="false"
             android:theme="@style/Theme.RecipeHub">
         </activity>
+
+        <activity
+            android:name=".SearchActivity"
+            android:theme="@style/Theme.RecipeHub">
+        </activity>
     </application>
 </manifest>

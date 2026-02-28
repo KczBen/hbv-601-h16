@@ -87,6 +87,8 @@ fun RecipeHubApp() {
                 )
             }
         }
+
+
     ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -104,7 +106,7 @@ fun RecipeHubApp() {
                 avatarUrl = "unused",
                 publishDate = "Today",
                 tag = "Dessert",
-                title = "Wonderful Chocolate Cake",
+                title = "Wonderful Chocolate Cake!",
                 excerpt = "Here is my favourite chocolate cake recipe for all of you to enjoy!",
                 imageUrl = "unused",
                 onLikeClick = {},
