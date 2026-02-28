@@ -12,6 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.domain.controller.SearchController
 import `is`.hi.hbv601g.h16.recipehub.ui.theme.RecipeHubTheme
@@ -35,6 +38,7 @@ class SearchActivity : ComponentActivity() {
     }
 }
 
+
 @Composable
 private fun SearchScreen(
     modifier: Modifier = Modifier,
@@ -57,7 +61,7 @@ private fun SearchScreen(
                 query = it
                 results = controller.search(query)
             },
-            label = { Text("Recipe title") },
+            label = { Text("Recipe") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )

@@ -24,7 +24,8 @@ class SearchController {
 
     fun search(query: String): List<SearchResult> {
         if (query.isBlank()) return recipes
-        return recipes.filter { it.categories.contains(query, ignoreCase = true) }
+        return recipes.filter { recipe -> recipe.categories.contains(query, ignoreCase = true) ||
+                recipe.title.contains(query, ignoreCase = true) }
     }
 
 }
