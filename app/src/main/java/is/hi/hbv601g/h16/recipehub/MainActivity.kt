@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
@@ -125,7 +126,7 @@ fun RecipeHubApp() {
                 isLiked = liked,
                 onLikeClick = {liked = !liked},
                 onCommentClick = {},
-                onShareClick = {}
+                onShareClick = {bookmarked = !bookmarked}
             )
         }
     }
@@ -247,7 +248,7 @@ fun FeedCard(
             ) {
                 ActionButton(icon = if(isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, label ="Like", onClick = onLikeClick)
                 ActionButton(icon = Icons.Outlined.ChatBubbleOutline, label = "Comment", onClick = onCommentClick)
-                ActionButton(icon = if(isBookmarked) Icons.Filled.Bookmarks else Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
+                ActionButton(icon = if(isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
             }
         }
     }
