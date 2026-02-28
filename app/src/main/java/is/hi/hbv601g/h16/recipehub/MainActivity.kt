@@ -20,7 +20,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -73,6 +75,8 @@ fun RecipeHubApp() {
 
     val context = LocalContext.current
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var liked by rememberSaveable { mutableStateOf(false) }
+    var bookmarked by rememberSaveable {mutableStateOf(false)}
 
 
     NavigationSuiteScaffold(
@@ -116,7 +120,9 @@ fun RecipeHubApp() {
                 title = "Wonderful Chocolate Cake!",
                 excerpt = "Here is my favourite chocolate cake recipe for all of you to enjoy!",
                 imageUrl = "unused",
-                onLikeClick = {},
+                isBookmarked = bookmarked,
+                isLiked = liked,
+                onLikeClick = {liked = !liked},
                 onCommentClick = {},
                 onShareClick = {}
             )
@@ -145,6 +151,8 @@ fun FeedCard(
     title: String,
     excerpt: String,
     imageUrl: String? = null,
+    isBookmarked: Boolean,
+    isLiked: Boolean,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onShareClick: () -> Unit
@@ -237,8 +245,10 @@ fun FeedCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 ActionButton(icon = Icons.Outlined.FavoriteBorder, label = "Like", onClick = onLikeClick)
-                ActionButton(icon = Icons.Outlined.ChatBubbleOutline, label = "Comment", onClick = onCommentClick)
-                ActionButton(icon = Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
+                ActionButton( icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    label = "Like",
+                    onClick = onLikeClick)
+                ActionButton(icon = if (isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
             }
         }
     }
