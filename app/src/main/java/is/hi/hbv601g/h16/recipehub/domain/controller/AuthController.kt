@@ -20,4 +20,6 @@ class AuthController {
 
         return expectedPassword == password
     }
+
+
 }
