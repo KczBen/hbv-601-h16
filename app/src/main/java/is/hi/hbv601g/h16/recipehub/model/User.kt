@@ -2,7 +2,7 @@ package `is`.hi.hbv601g.h16.recipehub.model
 
 import java.util.UUID
 
-class User(
+data class User(
     val id: UUID,
     val userName: String = "",
     val email: String = "",
@@ -16,4 +16,10 @@ class User(
     val following: Set<User> = setOf(),
     val isBanned: Boolean = false,
     val isAdmin: Boolean = false
-)
+) {
+    init {
+        require(userName.isNotBlank()) {"Username cannot be empty"}
+        require(email.isNotBlank()) {"Email address cannot be empty"}
+        require(passwordHash.isNotBlank()) {"Password cannot be empty"}
+    }
+}
