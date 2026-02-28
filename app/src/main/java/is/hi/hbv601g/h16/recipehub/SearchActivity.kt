@@ -72,8 +72,7 @@ private fun SearchScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // TODO: open recipe detail if you have it
-                            // Intent(this@SearchActivity, ViewRecipeActivity::class.java)
+                            // TODO: show recipe details
                         }
                 ) {
                     Column(Modifier.padding(12.dp)) {
