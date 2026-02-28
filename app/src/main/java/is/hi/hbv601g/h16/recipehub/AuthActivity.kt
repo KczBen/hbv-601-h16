@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +51,8 @@ class AuthActivity : ComponentActivity() {
                         authController = authController,
                         onLoginSuccess = {
                             context.startActivity(Intent(context, MainActivity::class.java))
-                        }
+                        },
+                        onSignUpSuccess = {context.startActivity(Intent(context, MainActivity::class.java))}
                     )
                 }
             }
@@ -62,12 +64,16 @@ class AuthActivity : ComponentActivity() {
 fun CredentialsFields(
     modifier: Modifier = Modifier,
     authController: AuthController, // Accept the controller
-    onLoginSuccess: () -> Unit) {
+    onLoginSuccess: () -> Unit,
+    onSignUpSuccess: () -> Unit) {
     var showSignUp by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     if (showSignUp) {
-        SignUpScreen(modifier = modifier, onBack = { showSignUp = false })
+        SignUpScreen(
+            modifier = modifier,
+            onBack = { showSignUp = false },
+            onSignUpSuccess = onSignUpSuccess)
     } else {
         LoginScreen(
             modifier = modifier,
@@ -124,10 +130,11 @@ fun LoginScreen(
 }
 
 @Composable
-fun SignUpScreen(modifier: Modifier = Modifier, onBack: () -> Unit) {
+fun SignUpScreen(modifier: Modifier = Modifier, onBack: () -> Unit, onSignUpSuccess: () -> Unit) {
     val nameState = rememberTextFieldState()
     val emailState = rememberTextFieldState()
     val passwordState = rememberTextFieldState()
+
 
     Column(
         modifier = modifier.fillMaxSize(),
@@ -151,7 +158,7 @@ fun SignUpScreen(modifier: Modifier = Modifier, onBack: () -> Unit) {
             label = { Text("Password") }
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = {}) {
+        Button(onClick = {onSignUpSuccess()}) {
             Text("Sign up")
         }
         Spacer(modifier = Modifier.height(4.dp))
