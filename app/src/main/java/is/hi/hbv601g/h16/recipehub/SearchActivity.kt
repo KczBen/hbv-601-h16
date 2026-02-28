@@ -71,9 +71,6 @@ private fun SearchScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            // TODO: show recipe details
-                        }
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(r.title, style = MaterialTheme.typography.titleMedium)
@@ -84,3 +81,6 @@ private fun SearchScreen(
         }
     }
 }
+
+
+
