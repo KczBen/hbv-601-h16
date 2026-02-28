@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -53,7 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.ui.theme.RecipeHubTheme
-
+import androidx.compose.ui.platform.LocalContext
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,24 +70,32 @@ class MainActivity : ComponentActivity() {
 @PreviewScreenSizes
 @Composable
 fun RecipeHubApp() {
+
+    val context = LocalContext.current
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
-            AppDestinations.entries.forEach {
+            AppDestinations.entries.forEach { dest ->
                 item(
                     icon = {
                         Icon(
-                            it.icon,
-                            contentDescription = it.label
+                            dest.icon,
+                            contentDescription = dest.label
                         )
                     },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
+                    label = { Text(dest.label) },
+                    selected = dest == currentDestination,
+                    onClick = { currentDestination = dest
+                        if (dest == AppDestinations.SEARCH){
+                            context.startActivity(Intent(context, SearchActivity::class.java))
+                        }}
                 )
             }
         }
+
+
     ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -104,7 +113,7 @@ fun RecipeHubApp() {
                 avatarUrl = "unused",
                 publishDate = "Today",
                 tag = "Dessert",
-                title = "Wonderful Chocolate Cake",
+                title = "Wonderful Chocolate Cake!",
                 excerpt = "Here is my favourite chocolate cake recipe for all of you to enjoy!",
                 imageUrl = "unused",
                 onLikeClick = {},
