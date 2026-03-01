@@ -15,13 +15,17 @@ class RecipeBookService {
         return MockRepository.recipeBooks.find { it.id == id }
     }
 
-    fun getUserRecipeBooks(owner: User): List<RecipeBook> {
+    fun getRecipeBooksByUser(owner: User): List<RecipeBook> {
         return MockRepository.recipeBooks.filter { it.owner == owner }
     }
 
-    fun addRecipeToBook(bookId: UUID, recipe: Recipe) {
+    fun getRecipeBooksByUser(owner: UUID): List<RecipeBook> {
+        return MockRepository.recipeBooks.filter { it.owner.id == owner }
+    }
+
+    fun addRecipe(user: User, bookId: UUID, recipe: Recipe) {
         val book = MockRepository.recipeBooks.find { it.id == bookId }
-        if (book != null) {
+        if (book != null && book.owner == user) {
             val updatedRecipes = book.recipes + recipe
             val updatedBook = book.copy(recipes = updatedRecipes)
             MockRepository.recipeBooks.remove(book)
@@ -29,9 +33,29 @@ class RecipeBookService {
         }
     }
 
-    fun removeRecipeFromBook(bookId: UUID, recipeId: UUID) {
+    fun removeRecipe(user: User, bookId: UUID, recipeId: UUID) {
         val book = MockRepository.recipeBooks.find { it.id == bookId }
-        if (book != null) {
+        if (book != null && book.owner == user) {
+            val updatedRecipes = book.recipes.filter { it.id != recipeId }.toSet()
+            val updatedBook = book.copy(recipes = updatedRecipes)
+            MockRepository.recipeBooks.remove(book)
+            MockRepository.recipeBooks.add(updatedBook)
+        }
+    }
+
+    fun addRecipe(userId: UUID, bookId: UUID, recipe: Recipe) {
+        val book = MockRepository.recipeBooks.find { it.id == bookId }
+        if (book != null && book.owner.id == userId) {
+            val updatedRecipes = book.recipes + recipe
+            val updatedBook = book.copy(recipes = updatedRecipes)
+            MockRepository.recipeBooks.remove(book)
+            MockRepository.recipeBooks.add(updatedBook)
+        }
+    }
+
+    fun removeRecipe(userId: UUID, bookId: UUID, recipeId: UUID) {
+        val book = MockRepository.recipeBooks.find { it.id == bookId }
+        if (book != null && book.owner.id == userId) {
             val updatedRecipes = book.recipes.filter { it.id != recipeId }.toSet()
             val updatedBook = book.copy(recipes = updatedRecipes)
             MockRepository.recipeBooks.remove(book)
