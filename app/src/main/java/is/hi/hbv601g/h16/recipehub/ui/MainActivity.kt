@@ -228,8 +228,18 @@ fun SearchScreen(
     recipeService: RecipeService,
     categoryService: CategoryService
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var results by remember { mutableStateOf(recipeService.getRecipeByCategory(setOf())) }
+    var categoryQuery by rememberSaveable { mutableStateOf("") }
+    val selectedCategories = remember { mutableStateListOf<Category>() }
+    var expanded by remember { mutableStateOf(false) }
+
+    val allCategories = categoryService.getAllCategories(0, 100).toList()
+    val filteredCategories = allCategories.filter {
+        it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
+    }
+
+    val results = remember(selectedCategories.size) {
+        recipeService.getRecipeByCategory(selectedCategories.toSet())
+    }
 
     Column(
         modifier = modifier
@@ -237,19 +247,55 @@ fun SearchScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Search", style = MaterialTheme.typography.headlineSmall)
+        Text("Search by Category", style = MaterialTheme.typography.headlineSmall)
 
-        OutlinedTextField(
-            value = query,
-            onValueChange = { it ->
-                query = it
-                val categories = categoryService.findCategoryByName(it)?.let { setOf(it) } ?: emptySet()
-                results = recipeService.getRecipeByCategory(categories)
-            },
-            label = { Text("Category") },
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            selectedCategories.forEach { category ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.clickable { selectedCategories.remove(category) }
+                ) {
+                    Text(
+                        text = category.name,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+
+        Box {
+            OutlinedTextField(
+                value = categoryQuery,
+                onValueChange = {
+                    categoryQuery = it
+                    expanded = it.isNotEmpty()
+                },
+                label = { Text("Category") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            DropdownMenu(
+                expanded = expanded && filteredCategories.isNotEmpty(),
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                filteredCategories.forEach { category ->
+                    DropdownMenuItem(
+                        text = { Text(category.name) },
+                        onClick = {
+                            selectedCategories.add(category)
+                            categoryQuery = ""
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(results) { r ->
