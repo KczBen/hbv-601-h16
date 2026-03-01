@@ -434,6 +434,200 @@ fun CreatePostScreen(
 }
 
 @Composable
+fun RecipeBooksScreen(
+    modifier: Modifier = Modifier,
+    service: RecipeBookService,
+    onSaveClick: (Recipe) -> Unit,
+    refreshTrigger: Int = 0
+) {
+    val currentUser = AuthService.currentUser
+    if (currentUser == null) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Log in to view your saved recipe books")
+        }
+        return
+    }
+
+    var selectedBookId by remember { mutableStateOf<UUID?>(null) }
+
+    // Refresh the list when refreshTrigger changes
+    val recipeBooks = remember(refreshTrigger, currentUser) {
+        service.getRecipeBooksByUser(currentUser)
+    }
+
+    val selectedBook = remember(selectedBookId, recipeBooks) {
+        recipeBooks.find { it.id == selectedBookId }
+    }
+
+    if (selectedBook == null) {
+        if (recipeBooks.isEmpty()) {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Nothing to show. Create a recipe book!")
+            }
+        } else {
+            LazyColumn(
+                modifier = modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(recipeBooks) { book ->
+                    RecipeBookCard(book = book, onClick = { selectedBookId = book.id })
+                }
+            }
+        }
+    } else {
+        Column(modifier = modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(onClick = { selectedBookId = null }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                Text(selectedBook.name, style = MaterialTheme.typography.headlineSmall)
+            }
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(selectedBook.recipes.toList()) { recipe ->
+                    FeedCard(
+                        recipe = recipe,
+                        onLikeClick = {},
+                        onCommentClick = {},
+                        onSaveClick = { onSaveClick(recipe) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecipeBookCard(
+    book: RecipeBook,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = book.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "${book.recipes.size} recipes",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun CreateRecipeBookDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, Boolean) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var isPublic by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Recipe Book") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Switch(
+                        checked = isPublic,
+                        onCheckedChange = { isPublic = it }
+                    )
+                    Text(if (isPublic) "Public" else "Private")
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(name, isPublic) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun AddToBookDialog(
+    recipe: Recipe,
+    recipeBooks: List<RecipeBook>,
+    onDismiss: () -> Unit,
+    onAddToBook: (RecipeBook) -> Unit,
+    onCreateNewBook: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add to Recipe Book") },
+        text = {
+            LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                items(recipeBooks) { book ->
+                    TextButton(
+                        onClick = { onAddToBook(book) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(book.name, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+                item {
+                    TextButton(
+                        onClick = onCreateNewBook,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("New book")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
 fun FeedCard(
     modifier: Modifier = Modifier,
     recipe: Recipe,
