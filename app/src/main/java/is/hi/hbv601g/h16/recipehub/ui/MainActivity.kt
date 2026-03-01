@@ -170,12 +170,12 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             ) {
                 // feed
                 composable(AppDestinations.HOME.name) {
-                   FeedScreen(modifier = Modifier.padding(innerPadding), service = mainViewModel.recipeService)
+                   FeedScreen(modifier = Modifier, service = mainViewModel.recipeService)
                 }
 
                 // search
                 composable(AppDestinations.SEARCH.name) {
-                    SearchScreen(modifier = Modifier.padding(innerPadding), recipeService = mainViewModel.recipeService, categoryService = mainViewModel.categoryService)
+                    SearchScreen(modifier = Modifier, recipeService = mainViewModel.recipeService, categoryService = mainViewModel.categoryService)
                 }
 
                 // recipe books
