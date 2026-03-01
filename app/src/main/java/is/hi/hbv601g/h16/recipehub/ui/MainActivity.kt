@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,21 +24,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -51,6 +52,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,17 +61,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.ui.theme.RecipeHubTheme
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.navigation
-import `is`.hi.hbv601g.h16.recipehub.domain.controller.SearchController
+import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
+import `is`.hi.hbv601g.h16.recipehub.domain.service.CategoryService
+import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeService
+import `is`.hi.hbv601g.h16.recipehub.model.Category
+import `is`.hi.hbv601g.h16.recipehub.model.Recipe
+import java.time.LocalDateTime
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,6 +96,29 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     val navController = androidx.navigation.compose.rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val context = LocalContext.current
+    var showLoginDialog by remember { mutableStateOf(false) }
+
+    if (showLoginDialog) {
+        AlertDialog(
+            onDismissRequest = { showLoginDialog = false },
+            title = { Text("Login Required") },
+            text = { Text("Please log in to create a post.") },
+            confirmButton = {
+                Button(onClick = {
+                    showLoginDialog = false
+                    context.startActivity(Intent(context, AuthActivity::class.java))
+                }) {
+                    Text("Login")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLoginDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
@@ -112,14 +142,21 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 AppHeader(
-                    onProfileClick = {},
-                    onSettingsClick = {}
+                    onProfileClick = {
+                        if (!AuthService().isLoggedIn()) {
+                            context.startActivity(Intent(context, AuthActivity::class.java))
+                        }
+                    }
                 )
             },
             floatingActionButton = {
                 if (currentRoute != "CREATE_POST") {
                     FloatingActionButton(onClick = {
-                        navController.navigate("CREATE_POST")
+                        if (AuthService().isLoggedIn()) {
+                            navController.navigate("CREATE_POST")
+                        } else {
+                            showLoginDialog = true
+                        }
                     }) {
                         Icon(Icons.Default.Add, contentDescription = "Post Recipe")
                     }
@@ -133,23 +170,12 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             ) {
                 // feed
                 composable(AppDestinations.HOME.name) {
-                    FeedCard(
-                        username = "Bobby Tables",
-                        rating = 4.5f,
-                        avatarUrl = "unused",
-                        publishDate = "Today",
-                        tag = "Dessert",
-                        title = "Wonderful Chocolate Cake",
-                        excerpt = "Here is my favourite chocolate cake recipe...",
-                        onLikeClick = {},
-                        onCommentClick = {},
-                        onShareClick = {}
-                    )
+                   FeedScreen(modifier = Modifier.padding(innerPadding), service = mainViewModel.recipeService)
                 }
 
                 // search
                 composable(AppDestinations.SEARCH.name) {
-                    SearchScreen(modifier = Modifier.padding(innerPadding), controller = mainViewModel.searchController)
+                    SearchScreen(modifier = Modifier.padding(innerPadding), recipeService = mainViewModel.recipeService, categoryService = mainViewModel.categoryService)
                 }
 
                 // recipe books
@@ -159,10 +185,14 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
 
                 // create post
                 composable("CREATE_POST") {
-                    CreatePostScreen(onPostCreated = {
-                        // go back after posting
-                        navController.popBackStack()
-                    })
+                    CreatePostScreen(
+                        recipeService = mainViewModel.recipeService,
+                        categoryService = mainViewModel.categoryService,
+                        onPostCreated = {
+                            // go back after posting
+                            navController.popBackStack()
+                        }
+                    )
                 }
             }
         }
@@ -179,12 +209,27 @@ enum class AppDestinations(
 }
 
 @Composable
-private fun SearchScreen(
+fun FeedScreen(
     modifier: Modifier = Modifier,
-    controller: SearchController
+    service: RecipeService
+) {
+    val recipes = service.getAllRecipes(0, 10)
+
+    LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(recipes) {
+            r -> FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onShareClick = {})
+        }
+    }
+}
+
+@Composable
+fun SearchScreen(
+    modifier: Modifier = Modifier,
+    recipeService: RecipeService,
+    categoryService: CategoryService
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var results by remember { mutableStateOf(controller.search("")) }
+    var results by remember { mutableStateOf(recipeService.getRecipeByCategory(setOf())) }
 
     Column(
         modifier = modifier
@@ -196,48 +241,148 @@ private fun SearchScreen(
 
         OutlinedTextField(
             value = query,
-            onValueChange = {
+            onValueChange = { it ->
                 query = it
-                results = controller.search(query)
+                val categories = categoryService.findCategoryByName(it)?.let { setOf(it) } ?: emptySet()
+                results = recipeService.getRecipeByCategory(categories)
             },
-            label = { Text("Recipe") },
+            label = { Text("Category") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(results) { r ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(r.title, style = MaterialTheme.typography.titleMedium)
-                        Text("by ${r.owner}", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
+                FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onShareClick = {})
             }
         }
     }
 }
 
 @Composable
-fun CreatePostScreen(onPostCreated: () -> Unit) {
+fun CreatePostScreen(
+    recipeService: RecipeService,
+    categoryService: CategoryService,
+    onPostCreated: () -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var textContent by remember { mutableStateOf("") }
+    var categoryQuery by remember { mutableStateOf("") }
+    val selectedCategories = remember { mutableStateListOf<Category>() }
+    var expanded by remember { mutableStateOf(false) }
+
+    val allCategories = categoryService.getAllCategories(0, 100).toList()
+    val filteredCategories = allCategories.filter {
+        it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("Create a New Recipe", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.size(16.dp))
 
-        // placeholder stuff
-        TextButton(onClick = onPostCreated) {
-            Text("Submit Post")
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Title") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = textContent,
+            onValueChange = { textContent = it },
+            label = { Text("Recipe Body") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+        )
+
+        Column {
+            Text("Categories", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                selectedCategories.forEach { category ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.clickable { selectedCategories.remove(category) }
+                    ) {
+                        Text(
+                            text = category.name,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+
+            Box {
+                OutlinedTextField(
+                    value = categoryQuery,
+                    onValueChange = {
+                        categoryQuery = it
+                        expanded = it.isNotEmpty()
+                    },
+                    label = { Text("Add Category") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                DropdownMenu(
+                    expanded = expanded && filteredCategories.isNotEmpty(),
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    filteredCategories.forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text(category.name) },
+                            onClick = {
+                                selectedCategories.add(category)
+                                categoryQuery = ""
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
 
-        TextButton(onClick = onPostCreated) {
-            Text("Cancel")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onPostCreated) {
+                Text("Cancel")
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    val user = AuthService.currentUser
+                    if (user != null && title.isNotBlank() && textContent.isNotBlank()) {
+                        val newRecipe = Recipe(
+                            id = UUID.randomUUID(),
+                            owner = user,
+                            title = title,
+                            textContent = textContent,
+                            creationDate = LocalDateTime.now(),
+                            editDate = LocalDateTime.now(),
+                            rating = 0f,
+                            ratingCount = 0,
+                            categories = selectedCategories.toSet()
+                        )
+                        recipeService.createRecipe(newRecipe)
+                        onPostCreated()
+                    }
+                },
+                enabled = title.isNotBlank() && textContent.isNotBlank()
+            ) {
+                Text("Submit Post")
+            }
         }
     }
 }
@@ -245,16 +390,7 @@ fun CreatePostScreen(onPostCreated: () -> Unit) {
 @Composable
 fun FeedCard(
     modifier: Modifier = Modifier,
-    username: String,
-    rating: Float,
-    avatarUrl: String,
-    publishDate: String,
-    tag: String,
-    title: String,
-    excerpt: String,
-    imageUrl: String? = null,
-    isBookmarked: Boolean,
-    isLiked: Boolean,
+    recipe: Recipe,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onShareClick: () -> Unit
@@ -284,12 +420,12 @@ fun FeedCard(
                 )
                 Column {
                     Text(
-                        text = username,
+                        text = recipe.owner.userName,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = publishDate,
+                        text = recipe.creationDate.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -301,16 +437,18 @@ fun FeedCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Text(
-                        text = tag,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                recipe.categories.forEach { category ->
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = category.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
 
@@ -319,21 +457,21 @@ fun FeedCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ){
-                Text(text = "$rating/5", style = MaterialTheme.typography.labelSmall)
+                Text(text = "${recipe.rating}/5.0", style = MaterialTheme.typography.labelSmall)
                 Icon(imageVector = Icons.Filled.Star, contentDescription = "Rating", modifier = Modifier.size(12.dp))
             }
 
             // post body
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = title,
+                    text = recipe.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = excerpt,
+                    text = recipe.textContent,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 3,
@@ -346,9 +484,9 @@ fun FeedCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                ActionButton(icon = if(isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, label ="Like", onClick = onLikeClick)
+                ActionButton(icon = Icons.Outlined.FavoriteBorder, label ="Like", onClick = onLikeClick)
                 ActionButton(icon = Icons.Outlined.ChatBubbleOutline, label = "Comment", onClick = onCommentClick)
-                ActionButton(icon = if(isBookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
+                ActionButton(icon = Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
             }
         }
     }
@@ -375,7 +513,6 @@ private fun ActionButton(
 @Composable
 fun AppHeader(
     onProfileClick: () -> Unit,
-    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     TopAppBar(
@@ -385,12 +522,6 @@ fun AppHeader(
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
                     contentDescription = "Profile"
-                )
-            }
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings"
                 )
             }
         },
