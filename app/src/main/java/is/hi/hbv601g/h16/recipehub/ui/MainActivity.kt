@@ -10,11 +10,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmarks
@@ -46,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -72,9 +76,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.CategoryService
+import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeBookService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeService
 import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
+import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -99,11 +105,17 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     val context = LocalContext.current
     var showLoginDialog by remember { mutableStateOf(false) }
 
+    // same check as above but for recipe books
+    var recipeToSave by remember { mutableStateOf<Recipe?>(null) }
+    var showCreateBookFromSave by remember { mutableStateOf(false) }
+    var showCreateBookDialogFromScreen by remember { mutableStateOf(false) }
+    var refreshTrigger by remember { mutableStateOf(0) }
+
     if (showLoginDialog) {
         AlertDialog(
             onDismissRequest = { showLoginDialog = false },
             title = { Text("Login Required") },
-            text = { Text("Please log in to create a post.") },
+            text = { Text("Please log in to continue.") },
             confirmButton = {
                 Button(onClick = {
                     showLoginDialog = false
@@ -115,6 +127,53 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             dismissButton = {
                 TextButton(onClick = { showLoginDialog = false }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (recipeToSave != null) {
+        val currentUser = AuthService.currentUser
+        if (currentUser != null) {
+            val books = mainViewModel.recipeBookService.getRecipeBooksByUser(currentUser)
+            AddToBookDialog(
+                recipe = recipeToSave!!,
+                recipeBooks = books,
+                onDismiss = { recipeToSave = null },
+                onAddToBook = { book ->
+                    mainViewModel.recipeBookService.addRecipe(currentUser, book.id!!, recipeToSave!!)
+                    recipeToSave = null
+                    refreshTrigger++
+                },
+                onCreateNewBook = {
+                    showCreateBookFromSave = true
+                }
+            )
+        }
+    }
+
+    if (showCreateBookFromSave || showCreateBookDialogFromScreen) {
+        CreateRecipeBookDialog(
+            onDismiss = { 
+                showCreateBookFromSave = false 
+                showCreateBookDialogFromScreen = false
+            },
+            onConfirm = { name, isPublic ->
+                val currentUser = AuthService.currentUser
+                if (currentUser != null) {
+                    val recipes = if (showCreateBookFromSave && recipeToSave != null) setOf(recipeToSave!!) else setOf()
+                    val newBook = RecipeBook(
+                        id = UUID.randomUUID(),
+                        owner = currentUser,
+                        name = name,
+                        isPublic = isPublic,
+                        recipes = recipes
+                    )
+                    mainViewModel.recipeBookService.createRecipeBook(newBook)
+                    showCreateBookFromSave = false
+                    showCreateBookDialogFromScreen = false
+                    recipeToSave = null
+                    refreshTrigger++
                 }
             }
         )
@@ -153,12 +212,16 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 if (currentRoute != "CREATE_POST") {
                     FloatingActionButton(onClick = {
                         if (AuthService().isLoggedIn()) {
-                            navController.navigate("CREATE_POST")
+                            if (currentRoute == AppDestinations.RECIPE_BOOKS.name) {
+                                showCreateBookDialogFromScreen = true
+                            } else {
+                                navController.navigate("CREATE_POST")
+                            }
                         } else {
                             showLoginDialog = true
                         }
                     }) {
-                        Icon(Icons.Default.Add, contentDescription = "Post Recipe")
+                        Icon(Icons.Default.Add, contentDescription = "Add")
                     }
                 }
             }
@@ -170,28 +233,38 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             ) {
                 // feed
                 composable(AppDestinations.HOME.name) {
-                   FeedScreen(modifier = Modifier, service = mainViewModel.recipeService)
+                   FeedScreen(
+                       modifier = Modifier, 
+                       service = mainViewModel.recipeService,
+                       onSaveClick = { recipeToSave = it }
+                   )
                 }
 
                 // search
                 composable(AppDestinations.SEARCH.name) {
-                    SearchScreen(modifier = Modifier, recipeService = mainViewModel.recipeService, categoryService = mainViewModel.categoryService)
+                    SearchScreen(
+                        modifier = Modifier, 
+                        recipeService = mainViewModel.recipeService, 
+                        categoryService = mainViewModel.categoryService,
+                        onSaveClick = { recipeToSave = it }
+                    )
                 }
 
                 // recipe books
                 composable(AppDestinations.RECIPE_BOOKS.name) {
-                    Text("Recipe Books Screen")
+                    RecipeBooksScreen(
+                        modifier = Modifier, 
+                        service = mainViewModel.recipeBookService,
+                        onSaveClick = { recipeToSave = it },
+                        refreshTrigger = refreshTrigger
+                    )
                 }
 
-                // create post
                 composable("CREATE_POST") {
                     CreatePostScreen(
                         recipeService = mainViewModel.recipeService,
                         categoryService = mainViewModel.categoryService,
-                        onPostCreated = {
-                            // go back after posting
-                            navController.popBackStack()
-                        }
+                        onPostCreated = { navController.popBackStack() }
                     )
                 }
             }
@@ -211,13 +284,14 @@ enum class AppDestinations(
 @Composable
 fun FeedScreen(
     modifier: Modifier = Modifier,
-    service: RecipeService
+    service: RecipeService,
+    onSaveClick: (Recipe) -> Unit
 ) {
     val recipes = service.getAllRecipes(0, 10)
 
     LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(recipes) {
-            r -> FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onShareClick = {})
+            r -> FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onSaveClick = { onSaveClick(r) })
         }
     }
 }
@@ -226,7 +300,8 @@ fun FeedScreen(
 fun SearchScreen(
     modifier: Modifier = Modifier,
     recipeService: RecipeService,
-    categoryService: CategoryService
+    categoryService: CategoryService,
+    onSaveClick: (Recipe) -> Unit
 ) {
     var categoryQuery by rememberSaveable { mutableStateOf("") }
     val selectedCategories = remember { mutableStateListOf<Category>() }
@@ -299,7 +374,7 @@ fun SearchScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(results) { r ->
-                FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onShareClick = {})
+                FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onSaveClick = { onSaveClick(r) })
             }
         }
     }
@@ -449,7 +524,7 @@ fun RecipeBooksScreen(
     }
 
     var selectedBookId by remember { mutableStateOf<UUID?>(null) }
-
+    
     // Refresh the list when refreshTrigger changes
     val recipeBooks = remember(refreshTrigger, currentUser) {
         service.getRecipeBooksByUser(currentUser)
@@ -633,7 +708,7 @@ fun FeedCard(
     recipe: Recipe,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
-    onShareClick: () -> Unit
+    onSaveClick: () -> Unit
 ) {
     Card(
         modifier = modifier
@@ -726,7 +801,7 @@ fun FeedCard(
             ) {
                 ActionButton(icon = Icons.Outlined.FavoriteBorder, label ="Like", onClick = onLikeClick)
                 ActionButton(icon = Icons.Outlined.ChatBubbleOutline, label = "Comment", onClick = onCommentClick)
-                ActionButton(icon = Icons.Outlined.BookmarkBorder, label = "Save", onClick = onShareClick)
+                ActionButton(icon = Icons.Outlined.BookmarkBorder, label = "Save", onClick = onSaveClick)
             }
         }
     }
