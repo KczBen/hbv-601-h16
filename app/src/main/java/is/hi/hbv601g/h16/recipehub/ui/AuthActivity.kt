@@ -1,4 +1,4 @@
-package `is`.hi.hbv601g.h16.recipehub
+package `is`.hi.hbv601g.h16.recipehub.ui
 
 import android.content.Intent
 import android.os.Bundle
