@@ -3,7 +3,7 @@ package `is`.hi.hbv601g.h16.recipehub.model
 import java.util.UUID
 
 data class User(
-    val id: UUID,
+    val id: UUID?,
     val userName: String = "",
     val email: String = "",
     val passwordHash: String = "",

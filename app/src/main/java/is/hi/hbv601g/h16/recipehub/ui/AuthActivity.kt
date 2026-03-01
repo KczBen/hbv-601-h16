@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,11 +31,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import `is`.hi.hbv601g.h16.recipehub.domain.controller.AuthController
+import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.ui.theme.RecipeHubTheme
 
 class AuthActivity : ComponentActivity() {
-    private val authController = AuthController();
+    private val authService = AuthService();
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +47,7 @@ class AuthActivity : ComponentActivity() {
                     val context = LocalContext.current
                     CredentialsFields(
                         modifier = Modifier.padding(innerPadding),
-                        authController = authController,
+                        authService = authService,
                         onLoginSuccess = {
                             context.startActivity(Intent(context, MainActivity::class.java))
                         },
@@ -63,7 +62,7 @@ class AuthActivity : ComponentActivity() {
 @Composable
 fun CredentialsFields(
     modifier: Modifier = Modifier,
-    authController: AuthController, // Accept the controller
+    authService: AuthService,
     onLoginSuccess: () -> Unit,
     onSignUpSuccess: () -> Unit) {
     var showSignUp by remember { mutableStateOf(false) }
@@ -73,13 +72,17 @@ fun CredentialsFields(
         SignUpScreen(
             modifier = modifier,
             onBack = { showSignUp = false },
-            onSignUpSuccess = onSignUpSuccess)
+            onSignUpSuccess = { username, email, password ->
+                authService.registerUser(username, email, password)
+                onSignUpSuccess()
+            }
+        )
     } else {
         LoginScreen(
             modifier = modifier,
             onSignUpClick = { showSignUp = true },
             onLoginClick = { username, password ->
-                if (authController.login(username, password)) {
+                if (authService.login(username, password)) {
                     onLoginSuccess()
                 } else {
                     Toast.makeText(context, "Incorrect username or password", Toast.LENGTH_SHORT).show()
@@ -130,7 +133,7 @@ fun LoginScreen(
 }
 
 @Composable
-fun SignUpScreen(modifier: Modifier = Modifier, onBack: () -> Unit, onSignUpSuccess: () -> Unit) {
+fun SignUpScreen(modifier: Modifier = Modifier, onBack: () -> Unit, onSignUpSuccess: (username: String, email: String, password: String) -> Unit) {
     val nameState = rememberTextFieldState()
     val emailState = rememberTextFieldState()
     val passwordState = rememberTextFieldState()
@@ -158,7 +161,7 @@ fun SignUpScreen(modifier: Modifier = Modifier, onBack: () -> Unit, onSignUpSucc
             label = { Text("Password") }
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = {onSignUpSuccess()}) {
+        Button(onClick = {onSignUpSuccess(nameState.text.toString(), emailState.text.toString(), passwordState.text.toString())}) {
             Text("Sign up")
         }
         Spacer(modifier = Modifier.height(4.dp))

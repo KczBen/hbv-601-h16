@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 data class Recipe(
-    val id: UUID,
+    val id: UUID?,
     val owner: User,
     val title: String,
     val textContent: String,
