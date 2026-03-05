@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -110,6 +111,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     var showCreateBookFromSave by remember { mutableStateOf(false) }
     var showCreateBookDialogFromScreen by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableStateOf(0) }
+
 
     if (showLoginDialog) {
         AlertDialog(
@@ -236,6 +238,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                    FeedScreen(
                        modifier = Modifier, 
                        service = mainViewModel.recipeService,
+                       mainViewModel = mainViewModel,
                        onSaveClick = { recipeToSave = it }
                    )
                 }
@@ -246,6 +249,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                         modifier = Modifier, 
                         recipeService = mainViewModel.recipeService, 
                         categoryService = mainViewModel.categoryService,
+                        mainViewModel = mainViewModel,
                         onSaveClick = { recipeToSave = it }
                     )
                 }
@@ -255,6 +259,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                     RecipeBooksScreen(
                         modifier = Modifier, 
                         service = mainViewModel.recipeBookService,
+                        mainViewModel = mainViewModel,
                         onSaveClick = { recipeToSave = it },
                         refreshTrigger = refreshTrigger
                     )
@@ -285,13 +290,14 @@ enum class AppDestinations(
 fun FeedScreen(
     modifier: Modifier = Modifier,
     service: RecipeService,
+    mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit
 ) {
     val recipes = service.getAllRecipes(0, 10)
 
     LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(recipes) {
-            r -> FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onSaveClick = { onSaveClick(r) })
+            r -> FeedCard(recipe = r, isLiked = mainViewModel.isLiked(r.id!!), onLikeClick = { mainViewModel.toggleLike(r.id)}, onCommentClick = {}, onSaveClick = { onSaveClick(r) })
         }
     }
 }
@@ -301,6 +307,7 @@ fun SearchScreen(
     modifier: Modifier = Modifier,
     recipeService: RecipeService,
     categoryService: CategoryService,
+    mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit
 ) {
     var categoryQuery by rememberSaveable { mutableStateOf("") }
@@ -374,7 +381,8 @@ fun SearchScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(results) { r ->
-                FeedCard(recipe = r, onLikeClick = {}, onCommentClick = {}, onSaveClick = { onSaveClick(r) })
+                FeedCard(recipe = r,  onCommentClick = {},isLiked = mainViewModel.isLiked(r.id!!),
+                    onLikeClick = { mainViewModel.toggleLike(r.id) }, onSaveClick = { onSaveClick(r) })
             }
         }
     }
@@ -512,6 +520,7 @@ fun CreatePostScreen(
 fun RecipeBooksScreen(
     modifier: Modifier = Modifier,
     service: RecipeBookService,
+    mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit,
     refreshTrigger: Int = 0
 ) {
@@ -568,7 +577,8 @@ fun RecipeBooksScreen(
                 items(selectedBook.recipes.toList()) { recipe ->
                     FeedCard(
                         recipe = recipe,
-                        onLikeClick = {},
+                        isLiked = mainViewModel.isLiked(recipe.id!!),
+                        onLikeClick = { mainViewModel.toggleLike(recipe.id) },
                         onCommentClick = {},
                         onSaveClick = { onSaveClick(recipe) }
                     )
@@ -706,6 +716,7 @@ fun AddToBookDialog(
 fun FeedCard(
     modifier: Modifier = Modifier,
     recipe: Recipe,
+    isLiked: Boolean,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onSaveClick: () -> Unit
@@ -799,7 +810,7 @@ fun FeedCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                ActionButton(icon = Icons.Outlined.FavoriteBorder, label ="Like", onClick = onLikeClick)
+                ActionButton(icon = if(isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, label = "Like", onClick = onLikeClick)
                 ActionButton(icon = Icons.Outlined.ChatBubbleOutline, label = "Comment", onClick = onCommentClick)
                 ActionButton(icon = Icons.Outlined.BookmarkBorder, label = "Save", onClick = onSaveClick)
             }
