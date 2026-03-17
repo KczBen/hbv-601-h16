@@ -8,6 +8,7 @@ data class RecipeResponseDTO(
     val title: String,
     val textContent: String,
     val imageUrls: Set<String>,
+    // TODO! major oversight, no creation/edit dates! FIX ON THE SERVER SIDE!
     val likes: Int,
     val rating: Float,
     val categories: Set<CategoryResponseDTO>

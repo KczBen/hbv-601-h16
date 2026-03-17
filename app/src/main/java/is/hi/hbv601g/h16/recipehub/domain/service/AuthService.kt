@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 class AuthService {
 
     private val authRepository = AuthRepository()
+    private val userService = UserService()
 
     companion object {
         private const val TAG = "AuthService"
@@ -35,7 +36,9 @@ class AuthService {
                 val body = response.body()
                 if (body != null) {
                     token = body.token
-                    currentUser = User(
+                    // Fetch full user details after login
+                    val userDetails = userService.getUser(body.userUuid)
+                    currentUser = userDetails ?: User(
                         id = body.userUuid,
                         userName = username,
                         email = "",

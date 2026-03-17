@@ -56,10 +56,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,6 +84,7 @@ import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeService
 import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -293,7 +296,11 @@ fun FeedScreen(
     mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit
 ) {
-    val recipes = service.getAllRecipes(0, 10)
+    var recipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+    
+    LaunchedEffect(Unit) {
+        recipes = service.getAllRecipes(0, 10)
+    }
 
     LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(recipes) {
@@ -319,8 +326,10 @@ fun SearchScreen(
         it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
     }
 
-    val results = remember(selectedCategories.size) {
-        recipeService.getRecipeByCategory(selectedCategories.toSet())
+    var results by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+    
+    LaunchedEffect(selectedCategories.size) {
+        results = recipeService.getRecipeByCategory(selectedCategories.toSet())
     }
 
     Column(
@@ -358,13 +367,12 @@ fun SearchScreen(
                     expanded = it.isNotEmpty()
                 },
                 label = { Text("Category") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth()
             )
             DropdownMenu(
                 expanded = expanded && filteredCategories.isNotEmpty(),
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(0.9f)
             ) {
                 filteredCategories.forEach { category ->
                     DropdownMenuItem(
@@ -381,8 +389,13 @@ fun SearchScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(results) { r ->
-                FeedCard(recipe = r,  onCommentClick = {},isLiked = mainViewModel.isLiked(r.id!!),
-                    onLikeClick = { mainViewModel.toggleLike(r.id) }, onSaveClick = { onSaveClick(r) })
+                FeedCard(
+                    recipe = r,
+                    isLiked = mainViewModel.isLiked(r.id!!),
+                    onLikeClick = { mainViewModel.toggleLike(r.id) },
+                    onCommentClick = {},
+                    onSaveClick = { onSaveClick(r) }
+                )
             }
         }
     }
@@ -399,6 +412,7 @@ fun CreatePostScreen(
     var categoryQuery by remember { mutableStateOf("") }
     val selectedCategories = remember { mutableStateListOf<Category>() }
     var expanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val allCategories = categoryService.getAllCategories(0, 100).toList()
     val filteredCategories = allCategories.filter {
@@ -504,8 +518,11 @@ fun CreatePostScreen(
                             ratingCount = 0,
                             categories = selectedCategories.toSet()
                         )
-                        recipeService.createRecipe(newRecipe)
-                        onPostCreated()
+                        scope.launch {
+                            if (recipeService.createRecipe(newRecipe)) {
+                                onPostCreated()
+                            }
+                        }
                     }
                 },
                 enabled = title.isNotBlank() && textContent.isNotBlank()
