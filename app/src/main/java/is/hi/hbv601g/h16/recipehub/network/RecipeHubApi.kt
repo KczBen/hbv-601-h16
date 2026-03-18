@@ -1,5 +1,7 @@
 package `is`.hi.hbv601g.h16.recipehub.network
 
+import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentRequestDTO
+import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeRequestDTO
@@ -94,4 +96,40 @@ interface RecipeHubApi {
         @Header("Authorization") token: String,
         @Path("user-uuid") userUuid: UUID
     ): Response<UserResponseDTO>
+
+    // Comment Endpoints
+    @POST("recipes/{recipe-uuid}/comments")
+    suspend fun createComment(
+        @Header("Authorization") token: String,
+        @Path("recipe-uuid") recipeUuid: UUID,
+        @Body request: CommentRequestDTO
+    ): Response<CommentResponseDTO>
+
+    @DELETE("recipes/{recipe-uuid}/comments/{comment-uuid}")
+    suspend fun deleteComment(
+        @Header("Authorization") token: String,
+        @Path("recipe-uuid") recipeUuid: UUID,
+        @Path("comment-uuid") commentUuid: UUID
+    ): Response<Void>
+
+    @PUT("recipes/{recipe-uuid}/comments/{comment-uuid}")
+    suspend fun updateComment(
+        @Header("Authorization") token: String,
+        @Path("recipe-uuid") recipeUuid: UUID,
+        @Path("comment-uuid") commentUuid: UUID,
+        @Body request: CommentRequestDTO
+    ): Response<CommentResponseDTO>
+
+    @GET("recipes/{recipeId}/comments")
+    suspend fun getComments(
+        @Path("recipeId") recipeId: UUID,
+        @Query("page") page: Int,
+        @Query("pageSize") pageSize: Int
+    ): Response<List<CommentResponseDTO>>
+
+    @GET("recipes/{recipe-uuid}/comments/{comment-uuid}")
+    suspend fun getComment(
+        @Path("recipe-uuid") recipeUuid: UUID,
+        @Path("comment-uuid") commentUuid: UUID
+    ): Response<CommentResponseDTO>
 }
