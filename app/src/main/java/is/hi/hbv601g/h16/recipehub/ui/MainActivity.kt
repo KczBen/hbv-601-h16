@@ -321,7 +321,11 @@ fun SearchScreen(
     val selectedCategories = remember { mutableStateListOf<Category>() }
     var expanded by remember { mutableStateOf(false) }
 
-    val allCategories = categoryService.getAllCategories(0, 100).toList()
+    var allCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        allCategories = categoryService.getAllCategories(0, 100).toList()
+    }
+    
     val filteredCategories = allCategories.filter {
         it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
     }
@@ -329,7 +333,12 @@ fun SearchScreen(
     var results by remember { mutableStateOf<List<Recipe>>(emptyList()) }
     
     LaunchedEffect(selectedCategories.size) {
-        results = recipeService.getRecipeByCategory(selectedCategories.toSet())
+        // this is just if let Some() from Rust
+        results = if (selectedCategories.isNotEmpty()) {
+            recipeService.getRecipeByCategory(selectedCategories.toSet())
+        } else {
+            emptyList()
+        }
     }
 
     Column(
@@ -414,7 +423,11 @@ fun CreatePostScreen(
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val allCategories = categoryService.getAllCategories(0, 100).toList()
+    var allCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        allCategories = categoryService.getAllCategories(0, 100).toList()
+    }
+
     val filteredCategories = allCategories.filter {
         it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
     }

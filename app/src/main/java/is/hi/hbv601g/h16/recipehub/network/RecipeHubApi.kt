@@ -1,5 +1,7 @@
 package `is`.hi.hbv601g.h16.recipehub.network
 
+import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryRequestDTO
+import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginRequestDTO
@@ -132,4 +134,34 @@ interface RecipeHubApi {
         @Path("recipe-uuid") recipeUuid: UUID,
         @Path("comment-uuid") commentUuid: UUID
     ): Response<CommentResponseDTO>
+
+    // Category Endpoints
+    @POST("categories/{category-uuid}")
+    suspend fun createCategory(
+        @Header("Authorization") token: String,
+        @Path("category-uuid") categoryUuid: UUID,
+        @Body request: CategoryRequestDTO
+    ): Response<CategoryResponseDTO>
+
+    @DELETE("categories/{category-uuid}")
+    suspend fun deleteCategory(
+        @Header("Authorization") token: String,
+        @Path("category-uuid") categoryUuid: UUID
+    ): Response<Void>
+
+    @GET("categories")
+    suspend fun getCategories(
+        @Query("page") page: Int,
+        @Query("pageSize") pageSize: Int
+    ): Response<List<CategoryResponseDTO>>
+
+    @GET("categories/{category-name}")
+    suspend fun getCategoryByName(
+        @Path("category-name") categoryName: String
+    ): Response<CategoryResponseDTO>
+
+    @GET("categories/{category-name}/recipes")
+    suspend fun getRecipesByCategoryName(
+        @Path("category-name") categoryName: String
+    ): Response<List<RecipeResponseDTO>>
 }

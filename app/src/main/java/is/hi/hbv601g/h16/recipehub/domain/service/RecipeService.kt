@@ -16,6 +16,7 @@ import java.util.UUID
 class RecipeService {
     private val recipeRepository = RecipeRepository()
     private val userService = UserService()
+    private val categoryService = CategoryService()
 
     companion object {
         private const val TAG = "RecipeService"
@@ -115,6 +116,13 @@ class RecipeService {
 
     // These methods might need further implementation or network support
     fun findByTitle(title: String): Recipe? = null
-    fun getRecipeByCategory(categories: Set<Category>): List<Recipe> = emptyList()
+
+    suspend fun getRecipeByCategory(categories: Set<Category>): List<Recipe> {
+        // If multiple categories are provided, we currently just fetch for the first one
+        // as the backend endpoint is per category name.
+        val categoryName = categories.firstOrNull()?.name ?: return emptyList()
+        return categoryService.getRecipesForCategory(categoryName).toList()
+    }
+
     fun getUserRecipes(owner: User): List<Recipe> = emptyList()
 }
