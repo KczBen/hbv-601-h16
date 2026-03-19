@@ -94,7 +94,7 @@ class RecipeService {
     }
 
     // Temporary mapping logic
-    private suspend fun mapToModel(dto: RecipeResponseDTO): Recipe {
+    suspend fun mapToModel(dto: RecipeResponseDTO): Recipe {
         val owner = userService.getUser(dto.ownerId) ?: User(id = dto.ownerId)
         return Recipe(
             id = dto.recipeId,

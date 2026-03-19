@@ -6,6 +6,8 @@ import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginResponseDTO
+import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeBookRequestDTO
+import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeBookResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.SignupRequestDTO
@@ -164,4 +166,43 @@ interface RecipeHubApi {
     suspend fun getRecipesByCategoryName(
         @Path("category-name") categoryName: String
     ): Response<List<RecipeResponseDTO>>
+
+    // RecipeBook Endpoints
+    @POST("recipebooks")
+    suspend fun createRecipeBook(
+        @Header("Authorization") token: String,
+        @Body request: RecipeBookRequestDTO
+    ): Response<RecipeBookResponseDTO>
+
+    @DELETE("recipebooks/{recipebook-uuid}")
+    suspend fun deleteRecipeBook(
+        @Header("Authorization") token: String,
+        @Path("recipebook-uuid") recipeBookUuid: UUID
+    ): Response<Void>
+
+    @GET("recipebooks")
+    suspend fun getRecipeBooks(
+        @Query("page") page: Int,
+        @Query("pageSize") pageSize: Int
+    ): Response<List<RecipeBookResponseDTO>>
+
+    @GET("recipebooks/{user-uuid}")
+    suspend fun getRecipeBooksForUser(
+        @Path("user-uuid") userUuid: UUID
+    ): Response<List<RecipeBookResponseDTO>>
+
+    @POST("recipebooks/{recipebook-uuid}/{recipe-uuid}")
+    suspend fun addRecipeToBook(
+        @Header("Authorization") token: String,
+        @Path("recipebook-uuid") recipeBookUuid: UUID,
+        @Path("recipe-uuid") recipeUuid: UUID
+    ): Response<RecipeBookResponseDTO>
+
+    // this probably should not have been put but rather delete, oh well
+    @PUT("recipebooks/{recipebook-uuid}/{recipe-uuid}")
+    suspend fun removeRecipeFromBook(
+        @Header("Authorization") token: String,
+        @Path("recipebook-uuid") recipeBookUuid: UUID,
+        @Path("recipe-uuid") recipeUuid: UUID
+    ): Response<RecipeBookResponseDTO>
 }

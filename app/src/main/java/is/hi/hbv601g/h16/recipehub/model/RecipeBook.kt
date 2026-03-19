@@ -4,7 +4,7 @@ import java.util.UUID
 
 data class RecipeBook(
     val id: UUID?,
-    val owner: User,
+    val owner: User?,
     val name: String,
     val recipes: Set<Recipe> = setOf(),
     val isPublic: Boolean
