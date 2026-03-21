@@ -46,6 +46,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -56,10 +57,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,11 +80,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.CategoryService
-import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeBookService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeService
 import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -106,11 +109,11 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     val context = LocalContext.current
     var showLoginDialog by remember { mutableStateOf(false) }
 
-    // same check as above but for recipe books
+    val scope = rememberCoroutineScope()
+
     var recipeToSave by remember { mutableStateOf<Recipe?>(null) }
     var showCreateBookFromSave by remember { mutableStateOf(false) }
     var showCreateBookDialogFromScreen by remember { mutableStateOf(false) }
-    var refreshTrigger by remember { mutableStateOf(0) }
 
 
     if (showLoginDialog) {
@@ -137,18 +140,24 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     if (recipeToSave != null) {
         val currentUser = AuthService.currentUser
         if (currentUser != null) {
-            val books = mainViewModel.recipeBookService.getRecipeBooksByUser(currentUser)
+            LaunchedEffect(currentUser.id) {
+                mainViewModel.fetchRecipeBooks(currentUser.id!!)
+            }
+
             AddToBookDialog(
                 recipe = recipeToSave!!,
-                recipeBooks = books,
+                recipeBooks = mainViewModel.recipeBooks,
                 onDismiss = { recipeToSave = null },
                 onAddToBook = { book ->
-                    mainViewModel.recipeBookService.addRecipe(currentUser, book.id!!, recipeToSave!!)
+                    val recipeId = recipeToSave?.id
+                    if (recipeId != null) {
+                        mainViewModel.addRecipeToBook(book.id!!, recipeId)
+                    }
                     recipeToSave = null
-                    refreshTrigger++
                 },
                 onCreateNewBook = {
                     showCreateBookFromSave = true
+                    recipeToSave = null
                 }
             )
         }
@@ -156,27 +165,14 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
 
     if (showCreateBookFromSave || showCreateBookDialogFromScreen) {
         CreateRecipeBookDialog(
-            onDismiss = { 
-                showCreateBookFromSave = false 
+            onDismiss = {
+                showCreateBookFromSave = false
                 showCreateBookDialogFromScreen = false
             },
             onConfirm = { name, isPublic ->
-                val currentUser = AuthService.currentUser
-                if (currentUser != null) {
-                    val recipes = if (showCreateBookFromSave && recipeToSave != null) setOf(recipeToSave!!) else setOf()
-                    val newBook = RecipeBook(
-                        id = UUID.randomUUID(),
-                        owner = currentUser,
-                        name = name,
-                        isPublic = isPublic,
-                        recipes = recipes
-                    )
-                    mainViewModel.recipeBookService.createRecipeBook(newBook)
-                    showCreateBookFromSave = false
-                    showCreateBookDialogFromScreen = false
-                    recipeToSave = null
-                    refreshTrigger++
-                }
+                mainViewModel.createRecipeBook(name, isPublic)
+                showCreateBookFromSave = false
+                showCreateBookDialogFromScreen = false
             }
         )
     }
@@ -202,13 +198,18 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
-                AppHeader(
-                    onProfileClick = {
-                        if (!AuthService().isLoggedIn()) {
-                            context.startActivity(Intent(context, AuthActivity::class.java))
+                Column {
+                    AppHeader(
+                        onProfileClick = {
+                            if (!AuthService().isLoggedIn()) {
+                                context.startActivity(Intent(context, AuthActivity::class.java))
+                            }
                         }
+                    )
+                    if (mainViewModel.isLoading) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                )
+                }
             },
             floatingActionButton = {
                 if (currentRoute != "CREATE_POST") {
@@ -236,8 +237,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 // feed
                 composable(AppDestinations.HOME.name) {
                    FeedScreen(
-                       modifier = Modifier, 
-                       service = mainViewModel.recipeService,
+                       modifier = Modifier,
                        mainViewModel = mainViewModel,
                        onSaveClick = { recipeToSave = it }
                    )
@@ -246,9 +246,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 // search
                 composable(AppDestinations.SEARCH.name) {
                     SearchScreen(
-                        modifier = Modifier, 
-                        recipeService = mainViewModel.recipeService, 
-                        categoryService = mainViewModel.categoryService,
+                        modifier = Modifier,
                         mainViewModel = mainViewModel,
                         onSaveClick = { recipeToSave = it }
                     )
@@ -257,11 +255,9 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 // recipe books
                 composable(AppDestinations.RECIPE_BOOKS.name) {
                     RecipeBooksScreen(
-                        modifier = Modifier, 
-                        service = mainViewModel.recipeBookService,
+                        modifier = Modifier,
                         mainViewModel = mainViewModel,
-                        onSaveClick = { recipeToSave = it },
-                        refreshTrigger = refreshTrigger
+                        onSaveClick = { recipeToSave = it }
                     )
                 }
 
@@ -269,7 +265,10 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                     CreatePostScreen(
                         recipeService = mainViewModel.recipeService,
                         categoryService = mainViewModel.categoryService,
-                        onPostCreated = { navController.popBackStack() }
+                        onPostCreated = { 
+                            mainViewModel.fetchRecipes()
+                            navController.popBackStack() 
+                        }
                     )
                 }
             }
@@ -289,15 +288,24 @@ enum class AppDestinations(
 @Composable
 fun FeedScreen(
     modifier: Modifier = Modifier,
-    service: RecipeService,
     mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit
 ) {
-    val recipes = service.getAllRecipes(0, 10)
+    LaunchedEffect(Unit) {
+        if (mainViewModel.recipes.isEmpty()) {
+            mainViewModel.fetchRecipes()
+        }
+    }
 
-    LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(recipes) {
-            r -> FeedCard(recipe = r, isLiked = mainViewModel.isLiked(r.id!!), onLikeClick = { mainViewModel.toggleLike(r.id)}, onCommentClick = {}, onSaveClick = { onSaveClick(r) })
+    LazyColumn(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(mainViewModel.recipes) { r ->
+            FeedCard(
+                recipe = r,
+                isLiked = mainViewModel.isLiked(r.id!!),
+                onLikeClick = { mainViewModel.toggleLike(r.id) },
+                onCommentClick = {},
+                onSaveClick = { onSaveClick(r) }
+            )
         }
     }
 }
@@ -305,8 +313,6 @@ fun FeedScreen(
 @Composable
 fun SearchScreen(
     modifier: Modifier = Modifier,
-    recipeService: RecipeService,
-    categoryService: CategoryService,
     mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit
 ) {
@@ -314,13 +320,22 @@ fun SearchScreen(
     val selectedCategories = remember { mutableStateListOf<Category>() }
     var expanded by remember { mutableStateOf(false) }
 
-    val allCategories = categoryService.getAllCategories(0, 100).toList()
-    val filteredCategories = allCategories.filter {
+    LaunchedEffect(Unit) {
+        mainViewModel.fetchCategories()
+    }
+
+    val filteredCategories = mainViewModel.categories.filter {
         it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
     }
 
-    val results = remember(selectedCategories.size) {
-        recipeService.getRecipeByCategory(selectedCategories.toSet())
+    var results by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+
+    LaunchedEffect(selectedCategories.size) {
+        if (selectedCategories.isNotEmpty()) {
+            results = mainViewModel.recipeService.getRecipeByCategory(selectedCategories.toSet())
+        } else {
+            results = emptyList()
+        }
     }
 
     Column(
@@ -358,13 +373,12 @@ fun SearchScreen(
                     expanded = it.isNotEmpty()
                 },
                 label = { Text("Category") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                modifier = Modifier.fillMaxWidth()
             )
             DropdownMenu(
                 expanded = expanded && filteredCategories.isNotEmpty(),
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(0.9f)
             ) {
                 filteredCategories.forEach { category ->
                     DropdownMenuItem(
@@ -379,10 +393,15 @@ fun SearchScreen(
             }
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(results) { r ->
-                FeedCard(recipe = r,  onCommentClick = {},isLiked = mainViewModel.isLiked(r.id!!),
-                    onLikeClick = { mainViewModel.toggleLike(r.id) }, onSaveClick = { onSaveClick(r) })
+                FeedCard(
+                    recipe = r,
+                    isLiked = mainViewModel.isLiked(r.id!!),
+                    onLikeClick = { mainViewModel.toggleLike(r.id) },
+                    onCommentClick = {},
+                    onSaveClick = { onSaveClick(r) }
+                )
             }
         }
     }
@@ -399,8 +418,13 @@ fun CreatePostScreen(
     var categoryQuery by remember { mutableStateOf("") }
     val selectedCategories = remember { mutableStateListOf<Category>() }
     var expanded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    val allCategories = categoryService.getAllCategories(0, 100).toList()
+    var allCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        allCategories = categoryService.getAllCategories(0, 100).toList()
+    }
+
     val filteredCategories = allCategories.filter {
         it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
     }
@@ -504,8 +528,11 @@ fun CreatePostScreen(
                             ratingCount = 0,
                             categories = selectedCategories.toSet()
                         )
-                        recipeService.createRecipe(newRecipe)
-                        onPostCreated()
+                        scope.launch {
+                            if (recipeService.createRecipe(newRecipe)) {
+                                onPostCreated()
+                            }
+                        }
                     }
                 },
                 enabled = title.isNotBlank() && textContent.isNotBlank()
@@ -519,10 +546,8 @@ fun CreatePostScreen(
 @Composable
 fun RecipeBooksScreen(
     modifier: Modifier = Modifier,
-    service: RecipeBookService,
     mainViewModel: MainViewModel,
-    onSaveClick: (Recipe) -> Unit,
-    refreshTrigger: Int = 0
+    onSaveClick: (Recipe) -> Unit
 ) {
     val currentUser = AuthService.currentUser
     if (currentUser == null) {
@@ -532,56 +557,60 @@ fun RecipeBooksScreen(
         return
     }
 
-    var selectedBookId by remember { mutableStateOf<UUID?>(null) }
-    
-    // Refresh the list when refreshTrigger changes
-    val recipeBooks = remember(refreshTrigger, currentUser) {
-        service.getRecipeBooksByUser(currentUser)
+    LaunchedEffect(currentUser.id) {
+        if (mainViewModel.recipeBooks.isEmpty()) {
+            mainViewModel.fetchRecipeBooks(currentUser.id!!)
+        }
     }
+
+    var selectedBookId by remember { mutableStateOf<UUID?>(null) }
+    val recipeBooks = mainViewModel.recipeBooks
 
     val selectedBook = remember(selectedBookId, recipeBooks) {
         recipeBooks.find { it.id == selectedBookId }
     }
 
-    if (selectedBook == null) {
-        if (recipeBooks.isEmpty()) {
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Nothing to show. Create a recipe book!")
+    Box(modifier = modifier.fillMaxSize()) {
+        if (selectedBook == null) {
+            if (recipeBooks.isEmpty() && !mainViewModel.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Nothing to show. Create a recipe book!")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    items(recipeBooks) { book ->
+                        RecipeBookCard(book = book, onClick = { selectedBookId = book.id })
+                    }
+                }
             }
         } else {
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(recipeBooks) { book ->
-                    RecipeBookCard(book = book, onClick = { selectedBookId = book.id })
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(onClick = { selectedBookId = null }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Text(selectedBook.name, style = MaterialTheme.typography.headlineSmall)
                 }
-            }
-        }
-    } else {
-        Column(modifier = modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                IconButton(onClick = { selectedBookId = null }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-                Text(selectedBook.name, style = MaterialTheme.typography.headlineSmall)
-            }
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(selectedBook.recipes.toList()) { recipe ->
-                    FeedCard(
-                        recipe = recipe,
-                        isLiked = mainViewModel.isLiked(recipe.id!!),
-                        onLikeClick = { mainViewModel.toggleLike(recipe.id) },
-                        onCommentClick = {},
-                        onSaveClick = { onSaveClick(recipe) }
-                    )
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(selectedBook.recipes.toList()) { recipe ->
+                        FeedCard(
+                            recipe = recipe,
+                            isLiked = mainViewModel.isLiked(recipe.id!!),
+                            onLikeClick = { mainViewModel.toggleLike(recipe.id) },
+                            onCommentClick = {},
+                            onSaveClick = { onSaveClick(recipe) }
+                        )
+                    }
                 }
             }
         }

@@ -16,10 +16,4 @@ data class User(
     val following: Set<User> = setOf(),
     val isBanned: Boolean = false,
     val isAdmin: Boolean = false
-) {
-    init {
-        require(userName.isNotBlank()) {"Username cannot be empty"}
-        require(email.isNotBlank()) {"Email address cannot be empty"}
-        require(passwordHash.isNotBlank()) {"Password cannot be empty"}
-    }
-}
+)
