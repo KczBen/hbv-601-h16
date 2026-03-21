@@ -84,6 +84,7 @@ import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeService
 import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
+import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.UUID
@@ -201,7 +202,10 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 Column {
                     AppHeader(
                         onProfileClick = {
-                            if (!AuthService().isLoggedIn()) {
+                            val myId = AuthService.currentUser?.id
+                            if (myId != null) {
+                                navController.navigate("USER_PROFILE/$myId")
+                            } else {
                                 context.startActivity(Intent(context, AuthActivity::class.java))
                             }
                         }
@@ -239,7 +243,10 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                    FeedScreen(
                        modifier = Modifier,
                        mainViewModel = mainViewModel,
-                       onSaveClick = { recipeToSave = it }
+                       onSaveClick = { recipeToSave = it },
+                       onCommentClick = { recipe ->
+                           navController.navigate("RECIPE_DETAIL/${recipe.id}")
+                       }
                    )
                 }
 
@@ -267,9 +274,40 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                         categoryService = mainViewModel.categoryService,
                         onPostCreated = { 
                             mainViewModel.fetchRecipes()
-                            navController.popBackStack() 
+                            navController.popBackStack()
                         }
                     )
+                }
+                // recipe detail, comments + edit recipe
+                composable("RECIPE_DETAIL/{recipeId}") { backStackEntry ->
+                    val recipeId = UUID.fromString(backStackEntry.arguments?.getString("recipeId"))
+                    val recipe = mainViewModel.recipes.find { it.id == recipeId }
+                    if (recipe != null) {
+                        RecipeDetailScreen(
+                            recipe = recipe,
+                            mainViewModel = mainViewModel,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                }
+
+                // user profile - unfollow
+                composable("USER_PROFILE/{userId}") { backStackEntry ->
+                    val userId = UUID.fromString(backStackEntry.arguments?.getString("userId"))
+                    var profileUser by remember { mutableStateOf<User?>(null) }
+                    LaunchedEffect(userId) {
+                        profileUser = mainViewModel.userService.getUser((userId))
+                    }
+                    profileUser?.let {
+                        UserScreen(
+                            profileUser = it,
+                            mainViewModel = mainViewModel,
+                            onBack = { navController.popBackStack() },
+                            onRecipeClick = { recipe ->
+                                navController.navigate("RECIPE_DETAIL/${recipe.id}")
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -289,7 +327,8 @@ enum class AppDestinations(
 fun FeedScreen(
     modifier: Modifier = Modifier,
     mainViewModel: MainViewModel,
-    onSaveClick: (Recipe) -> Unit
+    onSaveClick: (Recipe) -> Unit,
+    onCommentClick: (Recipe) -> Unit
 ) {
     LaunchedEffect(Unit) {
         if (mainViewModel.recipes.isEmpty()) {
@@ -303,7 +342,7 @@ fun FeedScreen(
                 recipe = r,
                 isLiked = mainViewModel.isLiked(r.id!!),
                 onLikeClick = { mainViewModel.toggleLike(r.id) },
-                onCommentClick = {},
+                onCommentClick = { onCommentClick(r) },
                 onSaveClick = { onSaveClick(r) }
             )
         }

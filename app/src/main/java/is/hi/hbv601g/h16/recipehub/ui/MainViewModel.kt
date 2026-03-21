@@ -7,11 +7,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import `is`.hi.hbv601g.h16.recipehub.domain.service.CategoryService
+import `is`.hi.hbv601g.h16.recipehub.domain.service.CommentService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.LikeService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeBookService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.RecipeService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.UserService
 import `is`.hi.hbv601g.h16.recipehub.model.Category
+import `is`.hi.hbv601g.h16.recipehub.model.Comment
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
 import kotlinx.coroutines.launch
@@ -22,7 +24,8 @@ class MainViewModel(
     val categoryService: CategoryService = CategoryService(),
     val recipeBookService: RecipeBookService = RecipeBookService(),
     val likeService: LikeService = LikeService(),
-    val userService: UserService = UserService()
+    val userService: UserService = UserService(),
+    val commentService: CommentService = CommentService()
 ) : ViewModel() {
 
     private val likedRecipeIds = mutableStateListOf<UUID>()
@@ -36,6 +39,9 @@ class MainViewModel(
         private set
 
     var recipeBooks by mutableStateOf<List<RecipeBook>>(emptyList())
+        private set
+
+    var comments by mutableStateOf<List<Comment>>(emptyList())
         private set
 
     var isLoading by mutableStateOf(false)
@@ -123,6 +129,46 @@ class MainViewModel(
                 }
             }
             isLoading = false
+        }
+    }
+
+    fun unfollowUser(userId: UUID, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = userService.unfollowUser(userId)
+            // unfollowUser returns the updated User on success, or null on failure
+            onResult(result != null)
+        }
+    }
+
+    fun fetchComments(recipeId: UUID) {
+        viewModelScope.launch {
+            isLoading = true
+            comments = commentService.getComments(recipeId, 0, 50)
+            isLoading = false
+        }
+    }
+
+    fun updateComment(recipeId: UUID, commentId: UUID, newText: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val updated = commentService.updateComment(recipeId, commentId, newText)
+            if (updated != null) {
+                // Replace the old comment in our local list so the UI updates instantly
+                comments = comments.map { if (it.id == commentId) updated else it }
+                onResult(true)
+            } else {
+                onResult(false)
+            }
+        }
+    }
+
+    fun updateRecipe(recipe: Recipe, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = recipeService.modifyRecipe(recipe)
+            if (success) {
+                // Update the recipe in our local list so the UI updates instantly
+                recipes = recipes.map { if (it.id == recipe.id) recipe else it }
+            }
+            onResult(success)
         }
     }
 }
