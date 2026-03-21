@@ -90,12 +90,14 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             RecipeHubTheme {
-                RecipeHubApp()
+                //RecipeHubApp()
+                CameraScreen()
             }
         }
     }
@@ -919,3 +921,5 @@ fun AppHeader(
         modifier = modifier
     )
 }
+
+
