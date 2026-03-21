@@ -12,6 +12,8 @@ import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.JsonReader
 import com.squareup.moshi.JsonWriter
 import java.util.UUID
+import okhttp3.Interceptor
+import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 
 object NetworkModule {
     private const val BASE_URL = "https://hbv-501-h24.onrender.com/"
@@ -36,8 +38,23 @@ object NetworkModule {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
+    private val authInterceptor = Interceptor { chain ->
+        val originalRequest = chain.request()
+        val token = AuthService.token
+
+        if (token != null) {
+            val authenticatedRequest = originalRequest.newBuilder()
+                .header("Authorization", "Bearer $token")
+                .build()
+            chain.proceed(authenticatedRequest)
+        } else {
+            chain.proceed(originalRequest)
+        }
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
+        .addInterceptor(authInterceptor)
         .build()
 
     private val retrofit = Retrofit.Builder()

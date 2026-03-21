@@ -19,7 +19,6 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
-import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -37,19 +36,16 @@ interface RecipeHubApi {
     // Recipe Endpoints
     @POST("recipes")
     suspend fun createRecipe(
-        @Header("Authorization") token: String,
         @Body request: RecipeRequestDTO
     ): Response<Void>
 
     @DELETE("recipes/{recipe-uuid}")
     suspend fun deleteRecipe(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID
     ): Response<Void>
 
     @PUT("recipes/{recipe-uuid}")
     suspend fun updateRecipe(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID,
         @Body request: RecipeRequestDTO
     ): Response<RecipeResponseDTO>
@@ -79,47 +75,40 @@ interface RecipeHubApi {
 
     @PUT("users/{user-uuid}")
     suspend fun updateUser(
-        @Header("Authorization") token: String,
         @Path("user-uuid") userUuid: UUID,
         @Body request: UserRequestDTO
     ): Response<UserResponseDTO>
 
     @DELETE("users/{user-uuid}")
     suspend fun deleteUser(
-        @Header("Authorization") token: String,
         @Path("user-uuid") userUuid: UUID
     ): Response<Void>
 
     @POST("users/{user-uuid}/follow")
     suspend fun followUser(
-        @Header("Authorization") token: String,
         @Path("user-uuid") userUuid: UUID
     ): Response<UserResponseDTO>
 
     @POST("users/{user-uuid}/unfollow")
     suspend fun unfollowUser(
-        @Header("Authorization") token: String,
         @Path("user-uuid") userUuid: UUID
     ): Response<UserResponseDTO>
 
     // Comment Endpoints
     @POST("recipes/{recipe-uuid}/comments")
     suspend fun createComment(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID,
         @Body request: CommentRequestDTO
     ): Response<CommentResponseDTO>
 
     @DELETE("recipes/{recipe-uuid}/comments/{comment-uuid}")
     suspend fun deleteComment(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID,
         @Path("comment-uuid") commentUuid: UUID
     ): Response<Void>
 
     @PUT("recipes/{recipe-uuid}/comments/{comment-uuid}")
     suspend fun updateComment(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID,
         @Path("comment-uuid") commentUuid: UUID,
         @Body request: CommentRequestDTO
@@ -141,14 +130,12 @@ interface RecipeHubApi {
     // Category Endpoints
     @POST("categories/{category-uuid}")
     suspend fun createCategory(
-        @Header("Authorization") token: String,
         @Path("category-uuid") categoryUuid: UUID,
         @Body request: CategoryRequestDTO
     ): Response<CategoryResponseDTO>
 
     @DELETE("categories/{category-uuid}")
     suspend fun deleteCategory(
-        @Header("Authorization") token: String,
         @Path("category-uuid") categoryUuid: UUID
     ): Response<Void>
 
@@ -171,13 +158,11 @@ interface RecipeHubApi {
     // RecipeBook Endpoints
     @POST("recipebooks")
     suspend fun createRecipeBook(
-        @Header("Authorization") token: String,
         @Body request: RecipeBookRequestDTO
     ): Response<RecipeBookResponseDTO>
 
     @DELETE("recipebooks/{recipebook-uuid}")
     suspend fun deleteRecipeBook(
-        @Header("Authorization") token: String,
         @Path("recipebook-uuid") recipeBookUuid: UUID
     ): Response<Void>
 
@@ -194,7 +179,6 @@ interface RecipeHubApi {
 
     @POST("recipebooks/{recipebook-uuid}/{recipe-uuid}")
     suspend fun addRecipeToBook(
-        @Header("Authorization") token: String,
         @Path("recipebook-uuid") recipeBookUuid: UUID,
         @Path("recipe-uuid") recipeUuid: UUID
     ): Response<RecipeBookResponseDTO>
@@ -202,7 +186,6 @@ interface RecipeHubApi {
     // this probably should not have been put but rather delete, oh well
     @PUT("recipebooks/{recipebook-uuid}/{recipe-uuid}")
     suspend fun removeRecipeFromBook(
-        @Header("Authorization") token: String,
         @Path("recipebook-uuid") recipeBookUuid: UUID,
         @Path("recipe-uuid") recipeUuid: UUID
     ): Response<RecipeBookResponseDTO>
@@ -210,13 +193,11 @@ interface RecipeHubApi {
     // Like Endpoints
     @POST("likes/recipe/{recipe-uuid}")
     suspend fun likeRecipe(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID
     ): Response<RecipeResponseDTO>
 
     @DELETE("likes/recipe/{recipe-uuid}")
     suspend fun unlikeRecipe(
-        @Header("Authorization") token: String,
         @Path("recipe-uuid") recipeUuid: UUID
     ): Response<RecipeResponseDTO>
 
