@@ -57,9 +57,10 @@ class LikeRepository {
         val owner = User(id = dto.ownerUuid)
         val recipe = Recipe(
             id = recipeUuid,
-            owner = User(id = UUID.randomUUID()),
+            owner = User(id = UUID.randomUUID()), // Placeholder
             title = "Shell Recipe",
             textContent = "Shell Content",
+            images = emptySet(),
             creationDate = LocalDateTime.now(),
             editDate = LocalDateTime.now(),
             rating = 0f,

@@ -80,9 +80,18 @@ class AuthService {
         return currentUser != null
     }
 
-    // Logging out is not implemented yet on the UI side
-    fun logout() {
+    suspend fun logout() = withContext(Dispatchers.IO) {
+        authRepository.logout()
         currentUser = null
         token = null
+    }
+
+    suspend fun tryAutoLogin(): Boolean = withContext(Dispatchers.IO) {
+        val localUser = authRepository.getLoggedInUser()
+        if (localUser != null) {
+            currentUser = localUser
+            return@withContext true
+        }
+        return@withContext false
     }
 }

@@ -78,11 +78,12 @@ class CommentRepository {
 
     private fun mapToModel(dto: CommentResponseDTO): Comment {
         val owner = User(id = dto.ownerUuid)
+        val placeholderOwnerId = UUID.randomUUID()
         val recipe = Recipe(
             id = dto.recipeUuid,
-            owner = User(id = UUID.randomUUID()), // Placeholder
-            title = "",
-            textContent = "",
+            owner = User(id = placeholderOwnerId), // Placeholder
+            title = "Placeholder",
+            textContent = "Placeholder",
             creationDate = dto.creationDate,
             editDate = dto.creationDate,
             rating = 0f,

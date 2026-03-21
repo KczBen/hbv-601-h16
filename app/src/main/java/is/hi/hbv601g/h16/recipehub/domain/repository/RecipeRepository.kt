@@ -9,6 +9,7 @@ import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeResponseDTO
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class RecipeRepository {
@@ -22,7 +23,7 @@ class RecipeRepository {
             title = recipe.title,
             textContent = recipe.textContent,
             imageUrls = recipe.images,
-            categoryUuids = recipe.categories.mapNotNull { it.id }.toSet()
+            categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
             val response = NetworkModule.apiService.createRecipe("Bearer $token", request)
@@ -48,7 +49,7 @@ class RecipeRepository {
             title = recipe.title,
             textContent = recipe.textContent,
             imageUrls = recipe.images,
-            categoryUuids = recipe.categories.mapNotNull { it.id }.toSet()
+            categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
             val response = NetworkModule.apiService.updateRecipe("Bearer $token", recipeUuid, request)
@@ -86,16 +87,17 @@ class RecipeRepository {
     }
 
     fun mapToModel(dto: RecipeResponseDTO): Recipe {
+        val formatter = DateTimeFormatter.ISO_DATE_TIME
         return Recipe(
             id = dto.recipeId,
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
             images = dto.imageUrls,
-            creationDate = LocalDateTime.now(), // Date not in DTO
-            editDate = LocalDateTime.now(),     // Date not in DTO
+            creationDate = dto.creationDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
+            editDate = dto.editDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
             rating = dto.rating,
-            ratingCount = 0, // Not in DTO
+            ratingCount = dto.ratingCount ?: 0L,
             categories = dto.categories.map { mapCategory(it) }.toSet()
         )
     }

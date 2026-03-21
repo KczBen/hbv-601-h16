@@ -3,6 +3,7 @@ package `is`.hi.hbv601g.h16.recipehub.domain.service
 import `is`.hi.hbv601g.h16.recipehub.domain.repository.RecipeRepository
 import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
+import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -22,8 +23,7 @@ class RecipeService {
 
     suspend fun deleteRecipe(recipe: Recipe): Boolean = withContext(Dispatchers.IO) {
         val token = AuthService.token ?: return@withContext false
-        val id = recipe.id ?: return@withContext false
-        recipeRepository.deleteRecipe(token, id)
+        recipeRepository.deleteRecipe(token, recipe.id)
     }
 
     suspend fun getAllRecipes(page: Int, pageSize: Int): List<Recipe> = withContext(Dispatchers.IO) {
@@ -32,8 +32,7 @@ class RecipeService {
 
     suspend fun modifyRecipe(recipe: Recipe): Boolean = withContext(Dispatchers.IO) {
         val token = AuthService.token ?: return@withContext false
-        val id = recipe.id ?: return@withContext false
-        recipeRepository.updateRecipe(token, id, recipe) != null
+        recipeRepository.updateRecipe(token, recipe.id, recipe) != null
     }
 
     // These methods might need further implementation or network support
@@ -44,5 +43,5 @@ class RecipeService {
         return categoryService.getRecipesForCategory(categoryName).toList()
     }
 
-    fun getUserRecipes(owner: `is`.hi.hbv601g.h16.recipehub.model.User): List<Recipe> = emptyList()
+    fun getUserRecipes(owner: User): List<Recipe> = emptyList()
 }

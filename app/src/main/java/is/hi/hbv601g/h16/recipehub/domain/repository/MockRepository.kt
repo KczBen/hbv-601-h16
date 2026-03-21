@@ -45,7 +45,7 @@ object MockRepository {
             creationDate = LocalDateTime.now(),
             editDate = LocalDateTime.now(),
             rating = 4.5f,
-            ratingCount = 10,
+            ratingCount = 10L,
             categories = setOf(cat1)
         )
         val recipe2 = Recipe(
@@ -56,7 +56,7 @@ object MockRepository {
             creationDate = LocalDateTime.now(),
             editDate = LocalDateTime.now(),
             rating = 5.0f,
-            ratingCount = 5,
+            ratingCount = 5L,
             categories = setOf(cat2)
         )
 

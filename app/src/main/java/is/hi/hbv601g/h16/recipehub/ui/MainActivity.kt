@@ -141,7 +141,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
         val currentUser = AuthService.currentUser
         if (currentUser != null) {
             LaunchedEffect(currentUser.id) {
-                mainViewModel.fetchRecipeBooks(currentUser.id!!)
+                mainViewModel.fetchRecipeBooks(currentUser.id)
             }
 
             AddToBookDialog(
@@ -149,10 +149,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 recipeBooks = mainViewModel.recipeBooks,
                 onDismiss = { recipeToSave = null },
                 onAddToBook = { book ->
-                    val recipeId = recipeToSave?.id
-                    if (recipeId != null) {
-                        mainViewModel.addRecipeToBook(book.id!!, recipeId)
-                    }
+                    mainViewModel.addRecipeToBook(book.id, recipeToSave!!.id)
                     recipeToSave = null
                 },
                 onCreateNewBook = {
@@ -301,7 +298,7 @@ fun FeedScreen(
         items(mainViewModel.recipes) { r ->
             FeedCard(
                 recipe = r,
-                isLiked = mainViewModel.isLiked(r.id!!),
+                isLiked = mainViewModel.isLiked(r.id),
                 onLikeClick = { mainViewModel.toggleLike(r.id) },
                 onCommentClick = {},
                 onSaveClick = { onSaveClick(r) }
@@ -397,7 +394,7 @@ fun SearchScreen(
             items(results) { r ->
                 FeedCard(
                     recipe = r,
-                    isLiked = mainViewModel.isLiked(r.id!!),
+                    isLiked = mainViewModel.isLiked(r.id),
                     onLikeClick = { mainViewModel.toggleLike(r.id) },
                     onCommentClick = {},
                     onSaveClick = { onSaveClick(r) }
@@ -559,7 +556,7 @@ fun RecipeBooksScreen(
 
     LaunchedEffect(currentUser.id) {
         if (mainViewModel.recipeBooks.isEmpty()) {
-            mainViewModel.fetchRecipeBooks(currentUser.id!!)
+            mainViewModel.fetchRecipeBooks(currentUser.id)
         }
     }
 
@@ -605,7 +602,7 @@ fun RecipeBooksScreen(
                     items(selectedBook.recipes.toList()) { recipe ->
                         FeedCard(
                             recipe = recipe,
-                            isLiked = mainViewModel.isLiked(recipe.id!!),
+                            isLiked = mainViewModel.isLiked(recipe.id),
                             onLikeClick = { mainViewModel.toggleLike(recipe.id) },
                             onCommentClick = {},
                             onSaveClick = { onSaveClick(recipe) }

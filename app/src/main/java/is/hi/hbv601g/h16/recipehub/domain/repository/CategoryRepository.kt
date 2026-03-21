@@ -9,6 +9,7 @@ import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeResponseDTO
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class CategoryRepository {
@@ -81,16 +82,17 @@ class CategoryRepository {
     }
 
     private fun mapRecipeToModel(dto: RecipeResponseDTO): Recipe {
+        val formatter = DateTimeFormatter.ISO_DATE_TIME
         return Recipe(
             id = dto.recipeId,
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
             images = dto.imageUrls,
-            creationDate = LocalDateTime.now(),
-            editDate = LocalDateTime.now(),
+            creationDate = dto.creationDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
+            editDate = dto.editDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
             rating = dto.rating,
-            ratingCount = 0,
+            ratingCount = dto.ratingCount ?: 0L,
             categories = dto.categories.map { mapToModel(it) }.toSet()
         )
     }
