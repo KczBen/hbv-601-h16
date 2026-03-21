@@ -61,6 +61,8 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.0")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+
     // Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.moshi)
