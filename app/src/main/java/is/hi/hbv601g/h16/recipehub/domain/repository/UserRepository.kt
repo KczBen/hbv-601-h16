@@ -1,34 +1,97 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.repository
 
+import android.util.Log
+import `is`.hi.hbv601g.h16.recipehub.model.User
 import `is`.hi.hbv601g.h16.recipehub.network.NetworkModule
 import `is`.hi.hbv601g.h16.recipehub.network.dto.UserRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.UserResponseDTO
-import retrofit2.Response
 import java.util.UUID
 
 class UserRepository {
 
-    suspend fun getUsers(page: Int, pageSize: Int): Response<List<UserResponseDTO>> {
-        return NetworkModule.apiService.getUsers(page, pageSize)
+    companion object {
+        private const val TAG = "UserRepository"
     }
 
-    suspend fun getUser(userUuid: UUID): Response<UserResponseDTO> {
-        return NetworkModule.apiService.getUser(userUuid)
+    suspend fun getUsers(page: Int, pageSize: Int): List<User> {
+        return try {
+            val response = NetworkModule.apiService.getUsers(page, pageSize)
+            if (response.isSuccessful) {
+                response.body()?.map { mapToModel(it) } ?: emptyList()
+            } else emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting users", e)
+            emptyList()
+        }
     }
 
-    suspend fun updateUser(token: String, userUuid: UUID, request: UserRequestDTO): Response<UserResponseDTO> {
-        return NetworkModule.apiService.updateUser("Bearer $token", userUuid, request)
+    suspend fun getUser(userUuid: UUID): User? {
+        return try {
+            val response = NetworkModule.apiService.getUser(userUuid)
+            if (response.isSuccessful) {
+                response.body()?.let { mapToModel(it) }
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting user", e)
+            null
+        }
     }
 
-    suspend fun deleteUser(token: String, userUuid: UUID): Response<Void> {
-        return NetworkModule.apiService.deleteUser("Bearer $token", userUuid)
+    suspend fun updateUser(token: String, userUuid: UUID, bio: String?, profilePictureUrl: String?): User? {
+        val request = UserRequestDTO(profilePictureUrl, bio)
+        return try {
+            val response = NetworkModule.apiService.updateUser("Bearer $token", userUuid, request)
+            if (response.isSuccessful) {
+                response.body()?.let { mapToModel(it) }
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating user", e)
+            null
+        }
     }
 
-    suspend fun followUser(token: String, userUuid: UUID): Response<UserResponseDTO> {
-        return NetworkModule.apiService.followUser("Bearer $token", userUuid)
+    suspend fun deleteUser(token: String, userUuid: UUID): Boolean {
+        return try {
+            val response = NetworkModule.apiService.deleteUser("Bearer $token", userUuid)
+            response.isSuccessful
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting user", e)
+            false
+        }
     }
 
-    suspend fun unfollowUser(token: String, userUuid: UUID): Response<UserResponseDTO> {
-        return NetworkModule.apiService.unfollowUser("Bearer $token", userUuid)
+    suspend fun followUser(token: String, userUuid: UUID): User? {
+        return try {
+            val response = NetworkModule.apiService.followUser("Bearer $token", userUuid)
+            if (response.isSuccessful) {
+                response.body()?.let { mapToModel(it) }
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error following user", e)
+            null
+        }
+    }
+
+    suspend fun unfollowUser(token: String, userUuid: UUID): User? {
+        return try {
+            val response = NetworkModule.apiService.unfollowUser("Bearer $token", userUuid)
+            if (response.isSuccessful) {
+                response.body()?.let { mapToModel(it) }
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unfollowing user", e)
+            null
+        }
+    }
+
+    fun mapToModel(dto: UserResponseDTO): User {
+        return User(
+            id = dto.id,
+            userName = dto.userName,
+            profilePictureURL = dto.profilePictureUrl ?: "",
+            bio = dto.bio ?: "",
+            isBanned = dto.isBanned,
+            isAdmin = dto.isAdmin
+        )
     }
 }

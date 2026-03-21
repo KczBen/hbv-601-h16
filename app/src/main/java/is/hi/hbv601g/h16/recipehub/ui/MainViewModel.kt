@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.CategoryService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.CommentService
 import `is`.hi.hbv601g.h16.recipehub.domain.service.LikeService
@@ -25,6 +26,7 @@ class MainViewModel(
     val recipeBookService: RecipeBookService = RecipeBookService(),
     val likeService: LikeService = LikeService(),
     val userService: UserService = UserService(),
+    private val authService: AuthService = AuthService()
     val commentService: CommentService = CommentService()
 ) : ViewModel() {
 
@@ -46,6 +48,17 @@ class MainViewModel(
 
     var isLoading by mutableStateOf(false)
         private set
+
+    init {
+        viewModelScope.launch {
+            if (authService.tryAutoLogin()) {
+                val user = AuthService.currentUser
+                if (user != null) {
+                    fetchRecipeBooks(user.id)
+                }
+            }
+        }
+    }
 
     fun isLiked(recipeId: UUID): Boolean = likedRecipeIds.contains(recipeId)
 
@@ -109,9 +122,9 @@ class MainViewModel(
             val result = recipeBookService.addRecipeToBook(bookId, recipeId)
             if (result != null) {
                 // Update local cache if needed, or just refresh
-                val ownerId = result.owner?.id
-                if (ownerId != null) {
-                    fetchRecipeBooks(ownerId)
+                val owner = result.owner
+                if (owner != null) {
+                    fetchRecipeBooks(owner.id)
                 }
             }
             isLoading = false
@@ -123,9 +136,9 @@ class MainViewModel(
             isLoading = true
             val result = recipeBookService.createRecipeBook(name, isPublic)
             if (result != null) {
-                val ownerId = result.owner?.id
-                if (ownerId != null) {
-                    fetchRecipeBooks(ownerId)
+                val owner = result.owner
+                if (owner != null) {
+                    fetchRecipeBooks(owner.id)
                 }
             }
             isLoading = false

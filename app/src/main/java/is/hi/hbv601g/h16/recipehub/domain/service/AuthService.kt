@@ -1,10 +1,7 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.service
 
-import android.util.Log
 import `is`.hi.hbv601g.h16.recipehub.domain.repository.AuthRepository
 import `is`.hi.hbv601g.h16.recipehub.model.User
-import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginRequestDTO
-import `is`.hi.hbv601g.h16.recipehub.network.dto.SignupRequestDTO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -14,7 +11,6 @@ class AuthService {
     private val userService = UserService()
 
     companion object {
-        private const val TAG = "AuthService"
         var currentUser: User? = null
         // Save the token for all future requests. Everything related to creating data needs one
         var token: String? = null
@@ -30,28 +26,18 @@ class AuthService {
     suspend fun login(username: String, password: String): Boolean = withContext(Dispatchers.IO) {
         if (username.isBlank() || password.isBlank()) return@withContext false
 
-        try {
-            val response = authRepository.login(LoginRequestDTO(username, password))
-            if (response.isSuccessful) {
-                val body = response.body()
-                if (body != null) {
-                    token = body.token
-                    // Fetch full user details after login
-                    val userDetails = userService.getUser(body.userUuid)
-                    currentUser = userDetails ?: User(
-                        id = body.userUuid,
-                        userName = username,
-                        email = "",
-                        passwordHash = ""
-                    )
-                    Log.d(TAG, "Login successful for $username")
-                    return@withContext true
-                }
-            } else {
-                Log.e(TAG, "Login failed: ${response.code()} ${response.errorBody()?.string()}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Login exception", e)
+        val result = authRepository.login(username, password)
+        if (result != null) {
+            token = result.token
+            // Fetch full user details after login
+            val userDetails = userService.getUser(result.userUuid)
+            currentUser = userDetails ?: User(
+                id = result.userUuid,
+                userName = username,
+                email = "",
+                passwordHash = ""
+            )
+            return@withContext true
         }
         return@withContext false
     }
@@ -61,17 +47,10 @@ class AuthService {
             return@withContext false
         }
 
-        try {
-            val response = authRepository.signup(SignupRequestDTO(username, email, password))
-            if (response.isSuccessful) {
-                Log.d(TAG, "Signup successful for $username, attempting login...")
-                // Automatically login after successful signup to get the token
-                return@withContext login(username, password)
-            } else {
-                Log.e(TAG, "Signup failed: ${response.code()} ${response.errorBody()?.string()}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Signup exception", e)
+        val result = authRepository.signup(username, email, password)
+        if (result != null) {
+            // Automatically login after successful signup to get the token
+            return@withContext login(username, password)
         }
         return@withContext false
     }
@@ -101,9 +80,18 @@ class AuthService {
         return currentUser != null
     }
 
-    // Logging out is not implemented yet on the UI side
-    fun logout() {
+    suspend fun logout() = withContext(Dispatchers.IO) {
+        authRepository.logout()
         currentUser = null
         token = null
+    }
+
+    suspend fun tryAutoLogin(): Boolean = withContext(Dispatchers.IO) {
+        val localUser = authRepository.getLoggedInUser()
+        if (localUser != null) {
+            currentUser = localUser
+            return@withContext true
+        }
+        return@withContext false
     }
 }
