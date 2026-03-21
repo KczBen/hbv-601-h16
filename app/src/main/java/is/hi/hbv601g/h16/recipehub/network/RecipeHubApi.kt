@@ -4,6 +4,7 @@ import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CommentResponseDTO
+import `is`.hi.hbv601g.h16.recipehub.network.dto.LikeResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeBookRequestDTO
@@ -205,4 +206,22 @@ interface RecipeHubApi {
         @Path("recipebook-uuid") recipeBookUuid: UUID,
         @Path("recipe-uuid") recipeUuid: UUID
     ): Response<RecipeBookResponseDTO>
+
+    // Like Endpoints
+    @POST("likes/recipe/{recipe-uuid}")
+    suspend fun likeRecipe(
+        @Header("Authorization") token: String,
+        @Path("recipe-uuid") recipeUuid: UUID
+    ): Response<RecipeResponseDTO>
+
+    @DELETE("likes/recipe/{recipe-uuid}")
+    suspend fun unlikeRecipe(
+        @Header("Authorization") token: String,
+        @Path("recipe-uuid") recipeUuid: UUID
+    ): Response<RecipeResponseDTO>
+
+    @GET("likes/recipe/{recipe-uuid}")
+    suspend fun getLikesForRecipe(
+        @Path("recipe-uuid") recipeUuid: UUID
+    ): Response<List<LikeResponseDTO>>
 }
