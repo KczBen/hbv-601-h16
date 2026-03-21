@@ -26,7 +26,7 @@ class MainViewModel(
     val recipeBookService: RecipeBookService = RecipeBookService(),
     val likeService: LikeService = LikeService(),
     val userService: UserService = UserService(),
-    private val authService: AuthService = AuthService()
+    private val authService: AuthService = AuthService(),
     val commentService: CommentService = CommentService()
 ) : ViewModel() {
 
