@@ -17,9 +17,9 @@ class LikeRepository {
 
     private val recipeRepository = RecipeRepository()
 
-    suspend fun likeRecipe(token: String, recipeUuid: UUID): Recipe? {
+    suspend fun likeRecipe(recipeUuid: UUID): Recipe? {
         return try {
-            val response = NetworkModule.apiService.likeRecipe("Bearer $token", recipeUuid)
+            val response = NetworkModule.apiService.likeRecipe(recipeUuid)
             if (response.isSuccessful) {
                 response.body()?.let { recipeRepository.mapToModel(it) }
             } else null
@@ -29,9 +29,9 @@ class LikeRepository {
         }
     }
 
-    suspend fun unlikeRecipe(token: String, recipeUuid: UUID): Recipe? {
+    suspend fun unlikeRecipe(recipeUuid: UUID): Recipe? {
         return try {
-            val response = NetworkModule.apiService.unlikeRecipe("Bearer $token", recipeUuid)
+            val response = NetworkModule.apiService.unlikeRecipe(recipeUuid)
             if (response.isSuccessful) {
                 response.body()?.let { recipeRepository.mapToModel(it) }
             } else null

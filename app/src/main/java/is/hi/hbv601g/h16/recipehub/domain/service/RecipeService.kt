@@ -13,8 +13,7 @@ class RecipeService {
     private val categoryService = CategoryService()
 
     suspend fun createRecipe(recipe: Recipe): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        recipeRepository.createRecipe(token, recipe)
+        recipeRepository.createRecipe(recipe)
     }
 
     suspend fun getSingleRecipe(id: UUID): Recipe? = withContext(Dispatchers.IO) {
@@ -22,8 +21,7 @@ class RecipeService {
     }
 
     suspend fun deleteRecipe(recipe: Recipe): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        recipeRepository.deleteRecipe(token, recipe.id)
+        recipeRepository.deleteRecipe(recipe.id)
     }
 
     suspend fun getAllRecipes(page: Int, pageSize: Int): List<Recipe> = withContext(Dispatchers.IO) {
@@ -31,17 +29,11 @@ class RecipeService {
     }
 
     suspend fun modifyRecipe(recipe: Recipe): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        recipeRepository.updateRecipe(token, recipe.id, recipe) != null
+        recipeRepository.updateRecipe(recipe.id, recipe) != null
     }
-
-    // These methods might need further implementation or network support
-    fun findByTitle(title: String): Recipe? = null
 
     suspend fun getRecipeByCategory(categories: Set<Category>): List<Recipe> {
         val categoryName = categories.firstOrNull()?.name ?: return emptyList()
         return categoryService.getRecipesForCategory(categoryName).toList()
     }
-
-    fun getUserRecipes(owner: User): List<Recipe> = emptyList()
 }

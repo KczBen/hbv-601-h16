@@ -1,6 +1,8 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.repository
 
+import android.content.Context
 import android.util.Log
+import `is`.hi.hbv601g.h16.recipehub.RecipeHubApplication
 import `is`.hi.hbv601g.h16.recipehub.model.User
 import `is`.hi.hbv601g.h16.recipehub.network.NetworkModule
 import `is`.hi.hbv601g.h16.recipehub.network.dto.LoginRequestDTO
@@ -9,6 +11,7 @@ import `is`.hi.hbv601g.h16.recipehub.persistence.PersistenceModule
 import `is`.hi.hbv601g.h16.recipehub.persistence.toEntity
 import `is`.hi.hbv601g.h16.recipehub.persistence.toModel
 import java.util.UUID
+import androidx.core.content.edit
 
 data class AuthResult(
     val token: String,
@@ -19,10 +22,13 @@ class AuthRepository {
 
     companion object {
         private const val TAG = "AuthRepository"
+        private const val PREFS_NAME = "auth_prefs"
+        private const val KEY_TOKEN = "jwt_token"
     }
 
     private val userDao = PersistenceModule.userDao
     private val userRepository = UserRepository()
+    private val sharedPrefs = RecipeHubApplication.getAppContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     suspend fun login(username: String, password: String): AuthResult? {
         return try {
@@ -30,6 +36,7 @@ class AuthRepository {
             if (response.isSuccessful) {
                 val result = response.body()?.let { AuthResult(it.token, it.userUuid) }
                 if (result != null) {
+                    saveToken(result.token)
                     // Sync user with local storage
                     val userResponse = NetworkModule.apiService.getUser(result.userUuid)
                     if (userResponse.isSuccessful) {
@@ -56,6 +63,7 @@ class AuthRepository {
             if (response.isSuccessful) {
                 val result = response.body()?.let { AuthResult(it.message, it.userUuid) }
                 if (result != null) {
+                    saveToken(result.token)
                     val userResponse = NetworkModule.apiService.getUser(result.userUuid)
                     if (userResponse.isSuccessful) {
                         userResponse.body()?.let { dto ->
@@ -75,12 +83,21 @@ class AuthRepository {
         }
     }
 
+    fun getSavedToken(): String? {
+        return sharedPrefs.getString(KEY_TOKEN, null)
+    }
+
+    private fun saveToken(token: String) {
+        sharedPrefs.edit { putString(KEY_TOKEN, token) }
+    }
+
     suspend fun getLoggedInUser(): User? {
         return userDao.getLoggedInUser()?.toModel()
     }
 
     suspend fun logout() {
         userDao.logoutAll()
+        sharedPrefs.edit { remove(KEY_TOKEN) }
     }
 
     private suspend fun saveUserLocally(user: User) {

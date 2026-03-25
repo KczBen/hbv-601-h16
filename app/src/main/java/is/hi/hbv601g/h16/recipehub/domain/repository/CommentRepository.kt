@@ -16,22 +16,25 @@ class CommentRepository {
         private const val TAG = "CommentRepository"
     }
 
-    suspend fun createComment(token: String, recipeUuid: UUID, textContent: String, images: Set<String>): Comment? {
+    suspend fun createComment(recipeUuid: UUID, textContent: String, images: Set<String>): Comment? {
         val request = CommentRequestDTO(textContent, images)
         return try {
-            val response = NetworkModule.apiService.createComment("Bearer $token", recipeUuid, request)
+            val response = NetworkModule.apiService.createComment(recipeUuid, request)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
-            } else null
+            } else {
+                Log.e(TAG, "Create comment failed: ${response.code()} ${response.errorBody()?.string()}")
+                null
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error creating comment", e)
             null
         }
     }
 
-    suspend fun deleteComment(token: String, recipeUuid: UUID, commentUuid: UUID): Boolean {
+    suspend fun deleteComment(recipeUuid: UUID, commentUuid: UUID): Boolean {
         return try {
-            val response = NetworkModule.apiService.deleteComment("Bearer $token", recipeUuid, commentUuid)
+            val response = NetworkModule.apiService.deleteComment(recipeUuid, commentUuid)
             response.isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting comment", e)
@@ -39,10 +42,10 @@ class CommentRepository {
         }
     }
 
-    suspend fun updateComment(token: String, recipeUuid: UUID, commentUuid: UUID, textContent: String, images: Set<String>): Comment? {
+    suspend fun updateComment(recipeUuid: UUID, commentUuid: UUID, textContent: String, images: Set<String>): Comment? {
         val request = CommentRequestDTO(textContent, images)
         return try {
-            val response = NetworkModule.apiService.updateComment("Bearer $token", recipeUuid, commentUuid, request)
+            val response = NetworkModule.apiService.updateComment(recipeUuid, commentUuid, request)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
             } else null
@@ -57,7 +60,10 @@ class CommentRepository {
             val response = NetworkModule.apiService.getComments(recipeId, page, pageSize)
             if (response.isSuccessful) {
                 response.body()?.map { mapToModel(it) } ?: emptyList()
-            } else emptyList()
+            } else {
+                Log.e(TAG, "Get comments failed: ${response.code()}")
+                emptyList()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting comments", e)
             emptyList()
@@ -78,14 +84,15 @@ class CommentRepository {
 
     private fun mapToModel(dto: CommentResponseDTO): Comment {
         val owner = User(id = dto.ownerUuid)
-        val placeholderOwnerId = UUID.randomUUID()
+        
+        // Creating a minimal placeholder recipe since Comment model requires it
         val recipe = Recipe(
             id = dto.recipeUuid,
-            owner = User(id = placeholderOwnerId), // Placeholder
+            owner = User(id = UUID.randomUUID()), // Placeholder
             title = "Placeholder",
             textContent = "Placeholder",
-            creationDate = dto.creationDate,
-            editDate = dto.creationDate,
+            creationDate = LocalDateTime.now(),
+            editDate = LocalDateTime.now(),
             rating = 0f,
             ratingCount = 0
         )

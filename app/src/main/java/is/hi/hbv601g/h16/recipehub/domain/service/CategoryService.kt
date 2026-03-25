@@ -12,13 +12,11 @@ class CategoryService {
     private val categoryRepository = CategoryRepository()
 
     suspend fun createCategory(categoryUuid: UUID, name: String): Category? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        categoryRepository.createCategory(token, categoryUuid, name)
+        categoryRepository.createCategory(categoryUuid, name)
     }
 
     suspend fun deleteCategory(categoryUuid: UUID): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        categoryRepository.deleteCategory(token, categoryUuid)
+        categoryRepository.deleteCategory(categoryUuid)
     }
 
     suspend fun getAllCategories(page: Int, pageSize: Int): Set<Category> = withContext(Dispatchers.IO) {

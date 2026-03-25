@@ -9,7 +9,6 @@ import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeResponseDTO
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class RecipeRepository {
@@ -18,7 +17,7 @@ class RecipeRepository {
         private const val TAG = "RecipeRepository"
     }
 
-    suspend fun createRecipe(token: String, recipe: Recipe): Boolean {
+    suspend fun createRecipe(recipe: Recipe): Boolean {
         val request = RecipeRequestDTO(
             title = recipe.title,
             textContent = recipe.textContent,
@@ -26,7 +25,7 @@ class RecipeRepository {
             categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
-            val response = NetworkModule.apiService.createRecipe("Bearer $token", request)
+            val response = NetworkModule.apiService.createRecipe(request)
             response.isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "Error creating recipe", e)
@@ -34,9 +33,9 @@ class RecipeRepository {
         }
     }
 
-    suspend fun deleteRecipe(token: String, recipeUuid: UUID): Boolean {
+    suspend fun deleteRecipe(recipeUuid: UUID): Boolean {
         return try {
-            val response = NetworkModule.apiService.deleteRecipe("Bearer $token", recipeUuid)
+            val response = NetworkModule.apiService.deleteRecipe(recipeUuid)
             response.isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting recipe", e)
@@ -44,7 +43,7 @@ class RecipeRepository {
         }
     }
 
-    suspend fun updateRecipe(token: String, recipeUuid: UUID, recipe: Recipe): Recipe? {
+    suspend fun updateRecipe(recipeUuid: UUID, recipe: Recipe): Recipe? {
         val request = RecipeRequestDTO(
             title = recipe.title,
             textContent = recipe.textContent,
@@ -52,7 +51,7 @@ class RecipeRepository {
             categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
-            val response = NetworkModule.apiService.updateRecipe("Bearer $token", recipeUuid, request)
+            val response = NetworkModule.apiService.updateRecipe(recipeUuid, request)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
             } else null
@@ -87,15 +86,14 @@ class RecipeRepository {
     }
 
     fun mapToModel(dto: RecipeResponseDTO): Recipe {
-        val formatter = DateTimeFormatter.ISO_DATE_TIME
         return Recipe(
             id = dto.recipeId,
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
             images = dto.imageUrls,
-            creationDate = dto.creationDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
-            editDate = dto.editDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
+            creationDate = dto.creationDate ?: LocalDateTime.now(),
+            editDate = dto.editDate ?: LocalDateTime.now(),
             rating = dto.rating,
             ratingCount = dto.ratingCount ?: 0L,
             categories = dto.categories.map { mapCategory(it) }.toSet()

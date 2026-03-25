@@ -18,22 +18,18 @@ class UserService {
     }
 
     suspend fun updateUser(id: UUID, bio: String?, profilePictureUrl: String?): User? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        userRepository.updateUser(token, id, bio, profilePictureUrl)
+        userRepository.updateUser(id, bio, profilePictureUrl)
     }
 
     suspend fun deleteUser(id: UUID): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        userRepository.deleteUser(token, id)
+        userRepository.deleteUser(id)
     }
 
     suspend fun followUser(id: UUID): User? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        userRepository.followUser(token, id)
+        userRepository.followUser(id)
     }
 
     suspend fun unfollowUser(id: UUID): User? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        userRepository.unfollowUser(token, id)
+        userRepository.unfollowUser(id)
     }
 }

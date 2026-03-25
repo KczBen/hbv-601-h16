@@ -15,12 +15,10 @@ class LikeService {
     }
 
     suspend fun likeRecipe(recipeUuid: UUID): Recipe? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        likeRepository.likeRecipe(token, recipeUuid)
+        likeRepository.likeRecipe(recipeUuid)
     }
 
     suspend fun unlikeRecipe(recipeUuid: UUID): Recipe? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        likeRepository.unlikeRecipe(token, recipeUuid)
+        likeRepository.unlikeRecipe(recipeUuid)
     }
 }
