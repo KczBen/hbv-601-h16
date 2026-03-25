@@ -10,5 +10,5 @@ data class CommentResponseDTO(
     val creationDate: LocalDateTime,
     val editDate: LocalDateTime?,
     val textContent: String,
-    val images: Set<String>
+    val images: Set<String>?
 )

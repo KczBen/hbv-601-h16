@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.network.dto
 
+import java.time.LocalDateTime
 import java.util.UUID
 
 data class RecipeResponseDTO(
@@ -8,8 +9,8 @@ data class RecipeResponseDTO(
     val title: String,
     val textContent: String,
     val imageUrls: Set<String>,
-    val creationDate: String?, // Assuming ISO-8601 string from server
-    val editDate: String?,     // Assuming ISO-8601 string from server
+    val creationDate: LocalDateTime?,
+    val editDate: LocalDateTime?,
     val likes: Int,
     val rating: Float,
     val ratingCount: Long?,
