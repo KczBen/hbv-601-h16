@@ -36,9 +36,9 @@ class RecipeBookRepository {
         }
     }
 
-    suspend fun createRecipeBook(token: String, request: RecipeBookRequestDTO): RecipeBook? {
+    suspend fun createRecipeBook(request: RecipeBookRequestDTO): RecipeBook? {
         return try {
-            val response = NetworkModule.apiService.createRecipeBook("Bearer $token", request)
+            val response = NetworkModule.apiService.createRecipeBook(request)
             if (response.isSuccessful) {
                 val book = response.body()?.let { mapToModel(it) }
                 val currentUserId = AuthService.currentUser?.id
@@ -53,9 +53,9 @@ class RecipeBookRepository {
         }
     }
 
-    suspend fun deleteRecipeBook(token: String, recipeBookUuid: UUID): Boolean {
+    suspend fun deleteRecipeBook(recipeBookUuid: UUID): Boolean {
         return try {
-            val response = NetworkModule.apiService.deleteRecipeBook("Bearer $token", recipeBookUuid)
+            val response = NetworkModule.apiService.deleteRecipeBook(recipeBookUuid)
             if (response.isSuccessful) {
                 true
             } else false
@@ -129,9 +129,9 @@ class RecipeBookRepository {
         }
     }
 
-    suspend fun addRecipeToBook(token: String, recipeBookUuid: UUID, recipeUuid: UUID): RecipeBook? {
+    suspend fun addRecipeToBook(recipeBookUuid: UUID, recipeUuid: UUID): RecipeBook? {
         return try {
-            val response = NetworkModule.apiService.addRecipeToBook("Bearer $token", recipeBookUuid, recipeUuid)
+            val response = NetworkModule.apiService.addRecipeToBook(recipeBookUuid, recipeUuid)
             if (response.isSuccessful) {
                 val book = response.body()?.let { mapToModel(it) }
                 val currentUserId = AuthService.currentUser?.id
@@ -146,9 +146,9 @@ class RecipeBookRepository {
         }
     }
 
-    suspend fun removeRecipeFromBook(token: String, recipeBookUuid: UUID, recipeUuid: UUID): RecipeBook? {
+    suspend fun removeRecipeFromBook(recipeBookUuid: UUID, recipeUuid: UUID): RecipeBook? {
         return try {
-            val response = NetworkModule.apiService.removeRecipeFromBook("Bearer $token", recipeBookUuid, recipeUuid)
+            val response = NetworkModule.apiService.removeRecipeFromBook(recipeBookUuid, recipeUuid)
             if (response.isSuccessful) {
                 val book = response.body()?.let { mapToModel(it) }
                 val currentUserId = AuthService.currentUser?.id

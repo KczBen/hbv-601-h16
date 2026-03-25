@@ -37,10 +37,10 @@ class UserRepository {
         }
     }
 
-    suspend fun updateUser(token: String, userUuid: UUID, bio: String?, profilePictureUrl: String?): User? {
+    suspend fun updateUser(userUuid: UUID, bio: String?, profilePictureUrl: String?): User? {
         val request = UserRequestDTO(profilePictureUrl, bio)
         return try {
-            val response = NetworkModule.apiService.updateUser("Bearer $token", userUuid, request)
+            val response = NetworkModule.apiService.updateUser(userUuid, request)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
             } else null
@@ -50,9 +50,9 @@ class UserRepository {
         }
     }
 
-    suspend fun deleteUser(token: String, userUuid: UUID): Boolean {
+    suspend fun deleteUser(userUuid: UUID): Boolean {
         return try {
-            val response = NetworkModule.apiService.deleteUser("Bearer $token", userUuid)
+            val response = NetworkModule.apiService.deleteUser(userUuid)
             response.isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting user", e)
@@ -60,9 +60,9 @@ class UserRepository {
         }
     }
 
-    suspend fun followUser(token: String, userUuid: UUID): User? {
+    suspend fun followUser(userUuid: UUID): User? {
         return try {
-            val response = NetworkModule.apiService.followUser("Bearer $token", userUuid)
+            val response = NetworkModule.apiService.followUser(userUuid)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
             } else null
@@ -72,9 +72,9 @@ class UserRepository {
         }
     }
 
-    suspend fun unfollowUser(token: String, userUuid: UUID): User? {
+    suspend fun unfollowUser(userUuid: UUID): User? {
         return try {
-            val response = NetworkModule.apiService.unfollowUser("Bearer $token", userUuid)
+            val response = NetworkModule.apiService.unfollowUser(userUuid)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
             } else null
@@ -91,7 +91,9 @@ class UserRepository {
             profilePictureURL = dto.profilePictureUrl ?: "",
             bio = dto.bio ?: "",
             isBanned = dto.isBanned,
-            isAdmin = dto.isAdmin
+            isAdmin = dto.isAdmin,
+            followers = dto.followers.map { User(id = it) }.toSet(),
+            following = dto.following.map { User(id = it) }.toSet()
         )
     }
 }

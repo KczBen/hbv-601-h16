@@ -12,9 +12,8 @@ class RecipeBookService {
     private val recipeBookRepository = RecipeBookRepository()
 
     suspend fun createRecipeBook(name: String, isPublic: Boolean): RecipeBook? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
         val request = RecipeBookRequestDTO(name, isPublic)
-        recipeBookRepository.createRecipeBook(token, request)
+        recipeBookRepository.createRecipeBook(request)
     }
 
     suspend fun getByUser(ownerId: UUID): List<RecipeBook>? = withContext(Dispatchers.IO) {
@@ -22,17 +21,14 @@ class RecipeBookService {
     }
 
     suspend fun addRecipeToBook(bookId: UUID, recipeId: UUID): RecipeBook? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        recipeBookRepository.addRecipeToBook(token, bookId, recipeId)
+        recipeBookRepository.addRecipeToBook(bookId, recipeId)
     }
 
     suspend fun removeRecipeFromBook(bookId: UUID, recipeId: UUID): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        recipeBookRepository.removeRecipeFromBook(token, bookId, recipeId) != null
+        recipeBookRepository.removeRecipeFromBook(bookId, recipeId) != null
     }
 
     suspend fun deleteRecipeBook(bookId: UUID): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        recipeBookRepository.deleteRecipeBook(token, bookId)
+        recipeBookRepository.deleteRecipeBook(bookId)
     }
 }

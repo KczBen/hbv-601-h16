@@ -10,18 +10,15 @@ class CommentService {
     private val commentRepository = CommentRepository()
 
     suspend fun createComment(recipeId: UUID, textContent: String, images: Set<String> = emptySet()): Comment? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        commentRepository.createComment(token, recipeId, textContent, images)
+        commentRepository.createComment(recipeId, textContent, images)
     }
 
     suspend fun deleteComment(recipeId: UUID, commentId: UUID): Boolean = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext false
-        commentRepository.deleteComment(token, recipeId, commentId)
+        commentRepository.deleteComment(recipeId, commentId)
     }
 
     suspend fun updateComment(recipeId: UUID, commentId: UUID, textContent: String, images: Set<String> = emptySet()): Comment? = withContext(Dispatchers.IO) {
-        val token = AuthService.token ?: return@withContext null
-        commentRepository.updateComment(token, recipeId, commentId, textContent, images)
+        commentRepository.updateComment(recipeId, commentId, textContent, images)
     }
 
     suspend fun getComments(recipeId: UUID, page: Int, pageSize: Int): List<Comment> = withContext(Dispatchers.IO) {

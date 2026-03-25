@@ -9,7 +9,6 @@ import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.CategoryResponseDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.RecipeResponseDTO
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class CategoryRepository {
@@ -18,10 +17,10 @@ class CategoryRepository {
         private const val TAG = "CategoryRepository"
     }
 
-    suspend fun createCategory(token: String, categoryUuid: UUID, name: String): Category? {
+    suspend fun createCategory(categoryUuid: UUID, name: String): Category? {
         val request = CategoryRequestDTO(name)
         return try {
-            val response = NetworkModule.apiService.createCategory("Bearer $token", categoryUuid, request)
+            val response = NetworkModule.apiService.createCategory(categoryUuid, request)
             if (response.isSuccessful) {
                 response.body()?.let { mapToModel(it) }
             } else null
@@ -31,9 +30,9 @@ class CategoryRepository {
         }
     }
 
-    suspend fun deleteCategory(token: String, categoryUuid: UUID): Boolean {
+    suspend fun deleteCategory(categoryUuid: UUID): Boolean {
         return try {
-            val response = NetworkModule.apiService.deleteCategory("Bearer $token", categoryUuid)
+            val response = NetworkModule.apiService.deleteCategory(categoryUuid)
             response.isSuccessful
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting category", e)
@@ -82,15 +81,14 @@ class CategoryRepository {
     }
 
     private fun mapRecipeToModel(dto: RecipeResponseDTO): Recipe {
-        val formatter = DateTimeFormatter.ISO_DATE_TIME
         return Recipe(
             id = dto.recipeId,
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
             images = dto.imageUrls,
-            creationDate = dto.creationDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
-            editDate = dto.editDate?.let { LocalDateTime.parse(it, formatter) } ?: LocalDateTime.now(),
+            creationDate = dto.creationDate ?: LocalDateTime.now(),
+            editDate = dto.editDate ?: LocalDateTime.now(),
             rating = dto.rating,
             ratingCount = dto.ratingCount ?: 0L,
             categories = dto.categories.map { mapToModel(it) }.toSet()

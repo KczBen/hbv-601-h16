@@ -90,6 +90,7 @@ class AuthService {
         val localUser = authRepository.getLoggedInUser()
         if (localUser != null) {
             currentUser = localUser
+            token = authRepository.getSavedToken()
             return@withContext true
         }
         return@withContext false
