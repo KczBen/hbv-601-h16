@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -32,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,16 +54,17 @@ import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.model.Comment
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
+import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecipeDetailScreen(
     recipe: Recipe,
     mainViewModel: MainViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onUserClick: (User) -> Unit = {}
 ) {
     val currentUser = AuthService.currentUser
     val isOwner = currentUser?.id == recipe.owner.id
@@ -67,10 +73,11 @@ fun RecipeDetailScreen(
     val scope = rememberCoroutineScope()
 
     var showEditRecipeDialog by remember { mutableStateOf(false) }
+    var commentText by remember { mutableStateOf("") }
 
     // load comments when the screen first opens
     LaunchedEffect(recipe.id) {
-        recipe.id?.let { mainViewModel.fetchComments(it) }
+        mainViewModel.fetchComments(recipe.id)
     }
 
     if (showEditRecipeDialog) {
@@ -113,6 +120,54 @@ fun RecipeDetailScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            if (currentUser != null) {
+                Surface(
+                    tonalElevation = 3.dp,
+                    shadowElevation = 8.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .navigationBarsPadding()
+                            .imePadding(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = commentText,
+                            onValueChange = { commentText = it },
+                            placeholder = { Text("Write a comment...") },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 4,
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (commentText.isNotBlank()) {
+                                    mainViewModel.createComment(recipe.id, commentText) { success ->
+                                        if (success) {
+                                            commentText = ""
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Comment posted!")
+                                            }
+                                        } else {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Failed to post comment")
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = commentText.isNotBlank()
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        }
+                    }
+                }
+            }
         }
     ) { innerPadding ->
         LazyColumn(
@@ -127,7 +182,8 @@ fun RecipeDetailScreen(
                 Text(
                     text = "by ${recipe.owner.userName}",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clickable { onUserClick(recipe.owner) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -168,7 +224,7 @@ fun RecipeDetailScreen(
                         canEdit = currentUser?.id == comment.owner.id,
                         onEditConfirm = { newText ->
                             mainViewModel.updateComment(
-                                recipeId = recipe.id!!,
+                                recipeId = recipe.id,
                                 commentId = comment.id!!,
                                 newText = newText
                             ) { success ->
@@ -178,7 +234,8 @@ fun RecipeDetailScreen(
                                     )
                                 }
                             }
-                        }
+                        },
+                        onUserClick = onUserClick
                     )
                 }
             }
@@ -192,7 +249,8 @@ fun RecipeDetailScreen(
 fun CommentItem(
     comment: Comment,
     canEdit: Boolean,
-    onEditConfirm: (String) -> Unit
+    onEditConfirm: (String) -> Unit,
+    onUserClick: (User) -> Unit = {}
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -224,7 +282,8 @@ fun CommentItem(
                 Text(
                     text = comment.owner.userName,
                     style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onUserClick(comment.owner) }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

@@ -17,6 +17,10 @@ import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Comment
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
+import `is`.hi.hbv601g.h16.recipehub.model.User
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -31,6 +35,7 @@ class MainViewModel(
 ) : ViewModel() {
 
     private val likedRecipeIds = mutableStateListOf<UUID>()
+    private val userCache = mutableMapOf<UUID, User>()
 
 
     // Very basic cache for stuff we don't want to keep fetching when we don't need to
@@ -91,8 +96,44 @@ class MainViewModel(
     fun fetchRecipes() {
         viewModelScope.launch {
             isLoading = true
-            recipes = recipeService.getAllRecipes(0, 10)
+            val fetched = recipeService.getAllRecipes(0, 10)
+            recipes = fetched
+            
+            val enriched = enrichRecipesList(fetched)
+            recipes = enriched
             isLoading = false
+        }
+    }
+
+    private suspend fun enrichRecipesList(list: List<Recipe>): List<Recipe> = coroutineScope {
+        val ownerIds = list.map { it.owner.id }.distinct()
+        val owners = ownerIds.map { id -> 
+            async { id to fetchUserWithCache(id) }
+        }.awaitAll().toMap()
+        
+        list.map { recipe ->
+            owners[recipe.owner.id]?.let { recipe.copy(owner = it) } ?: recipe
+        }
+    }
+
+    private suspend fun fetchUserWithCache(userId: UUID): User? {
+        userCache[userId]?.let { return it }
+        val user = userService.getUser(userId)
+        if (user != null) {
+            userCache[userId] = user
+        }
+        return user
+    }
+
+    private fun updateUserInCacheAndLists(user: User) {
+        userCache[user.id] = user
+        // update recipes owned by this user
+        recipes = recipes.map {
+            if (it.owner.id == user.id) it.copy(owner = user) else it
+        }
+        // update comments owned by this user
+        comments = comments.map {
+            if (it.owner.id == user.id) it.copy(owner = user) else it
         }
     }
 
@@ -111,6 +152,15 @@ class MainViewModel(
             val result = recipeBookService.getByUser(userId)
             if (result != null) {
                 recipeBooks = result
+                val enriched = coroutineScope {
+                    result.map { book ->
+                        async {
+                            val owner = book.owner?.id?.let { fetchUserWithCache(it) }
+                            if (owner != null) book.copy(owner = owner) else book
+                        }
+                    }.awaitAll()
+                }
+                recipeBooks = enriched
             }
             isLoading = false
         }
@@ -145,19 +195,73 @@ class MainViewModel(
         }
     }
 
-    fun unfollowUser(userId: UUID, onResult: (Boolean) -> Unit) {
+    fun followUser(userId: UUID, onResult: (User?) -> Unit) {
+        viewModelScope.launch {
+            val result = userService.followUser(userId)
+            if (result != null) {
+                // 'result' is the current user (me) with updated 'following' list
+                refreshFollowData(result, userId, onResult)
+            } else {
+                onResult(null)
+            }
+        }
+    }
+
+    fun unfollowUser(userId: UUID, onResult: (User?) -> Unit) {
         viewModelScope.launch {
             val result = userService.unfollowUser(userId)
-            // unfollowUser returns the updated User on success, or null on failure
-            onResult(result != null)
+            if (result != null) {
+                // 'result' is the current user (me) with updated 'following' list
+                refreshFollowData(result, userId, onResult)
+            } else {
+                onResult(null)
+            }
         }
+    }
+
+    private suspend fun refreshFollowData(updatedMe: User, targetUserId: UUID, onResult: (User?) -> Unit) {
+        // Update current user state with the returned object (which is 'me')
+        AuthService.currentUser = updatedMe
+        updateUserInCacheAndLists(updatedMe)
+
+        // Fetch the target user (the one we followed/unfollowed) to get their updated follower count
+        val updatedTarget = userService.getUser(targetUserId)
+        if (updatedTarget != null) {
+            updateUserInCacheAndLists(updatedTarget)
+        }
+
+        onResult(updatedTarget)
     }
 
     fun fetchComments(recipeId: UUID) {
         viewModelScope.launch {
             isLoading = true
-            comments = commentService.getComments(recipeId, 0, 50)
+            val fetched = commentService.getComments(recipeId, 0, 50)
+            comments = fetched
+            
+            val enriched = coroutineScope {
+                fetched.map { comment ->
+                    async {
+                        val user = fetchUserWithCache(comment.owner.id)
+                        if (user != null) comment.copy(owner = user) else comment
+                    }
+                }.awaitAll()
+            }
+            comments = enriched
             isLoading = false
+        }
+    }
+
+    fun createComment(recipeId: UUID, textContent: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val created = commentService.createComment(recipeId, textContent)
+            if (created != null) {
+                // Refresh comments to include the new one (and ensure it's enriched with owner info)
+                fetchComments(recipeId)
+                onResult(true)
+            } else {
+                onResult(false)
+            }
         }
     }
 
@@ -182,6 +286,15 @@ class MainViewModel(
                 recipes = recipes.map { if (it.id == recipe.id) recipe else it }
             }
             onResult(success)
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            authService.logout()
+            recipeBooks = emptyList()
+            likedRecipeIds.clear()
+            userCache.clear()
         }
     }
 }

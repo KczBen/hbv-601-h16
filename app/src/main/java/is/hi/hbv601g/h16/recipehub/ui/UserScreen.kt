@@ -34,7 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -59,10 +58,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
-import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
 import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,7 +93,7 @@ fun UserScreen(
 
     var userRecipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
     LaunchedEffect(profileUser.id) {
-        profileUser.id?.let { uid ->
+        profileUser.id.let { uid ->
             mainViewModel.fetchRecipeBooks(uid)
             // filter the global recipe list for this user's recipes
             userRecipes = mainViewModel.recipes.filter { it.owner.id == uid }
@@ -117,8 +114,9 @@ fun UserScreen(
                 Button(
                     onClick = {
                         showUnfollowDialog = false
-                        mainViewModel.unfollowUser(displayedUser.id!!) { success ->
-                            if (success) {
+                        mainViewModel.unfollowUser(displayedUser.id) { updatedUser ->
+                            if (updatedUser != null) {
+                                displayedUser = updatedUser
                                 isFollowing = false
                                 scope.launch {
                                     snackbarHostState.showSnackbar("Unfollowed ${displayedUser.userName}")
@@ -152,7 +150,7 @@ fun UserScreen(
                 showEditProfileDialog = false
                 scope.launch {
                     val updated = mainViewModel.userService.updateUser(
-                        id = displayedUser.id!!,
+                        id = displayedUser.id,
                         bio = newBio,
                         profilePictureUrl = newPicUrl.ifBlank { null }
                     )
@@ -260,6 +258,19 @@ fun UserScreen(
                     } else {
                         Button(
                             onClick = {
+                                mainViewModel.followUser(displayedUser.id) { updatedUser ->
+                                    if (updatedUser != null) {
+                                        displayedUser = updatedUser
+                                        isFollowing = true
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Following ${displayedUser.userName}")
+                                        }
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Something went wrong, please try again")
+                                        }
+                                    }
+                                }
                             },
                             modifier = Modifier.width(160.dp)
                         ) {

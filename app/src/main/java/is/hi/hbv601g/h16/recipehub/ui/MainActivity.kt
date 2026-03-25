@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmarks
@@ -197,6 +198,9 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 Column {
+                    val isViewingOwnProfile = currentRoute == "USER_PROFILE/{userId}" &&
+                            navBackStackEntry?.arguments?.getString("userId") == AuthService.currentUser?.id?.toString()
+
                     AppHeader(
                         onProfileClick = {
                             val myId = AuthService.currentUser?.id
@@ -205,7 +209,15 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                             } else {
                                 context.startActivity(Intent(context, AuthActivity::class.java))
                             }
-                        }
+                        },
+                        onLogoutClick = if (isViewingOwnProfile) {
+                            {
+                                mainViewModel.logout()
+                                navController.navigate(AppDestinations.HOME.name) {
+                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                }
+                            }
+                        } else null
                     )
                     if (mainViewModel.isLoading) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -213,7 +225,7 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 }
             },
             floatingActionButton = {
-                if (currentRoute != "CREATE_POST") {
+                if (currentRoute != "CREATE_POST" && currentRoute?.startsWith("RECIPE_DETAIL") != true) {
                     FloatingActionButton(onClick = {
                         if (AuthService().isLoggedIn()) {
                             if (currentRoute == AppDestinations.RECIPE_BOOKS.name) {
@@ -240,8 +252,14 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                    FeedScreen(
                        modifier = Modifier,
                        mainViewModel = mainViewModel,
-                       onSaveClick = { recipeToSave = it },
-                       onCommentClick = { recipe ->
+                       onSaveClick = { recipe: Recipe -> recipeToSave = recipe },
+                       onCommentClick = { recipe: Recipe ->
+                           navController.navigate("RECIPE_DETAIL/${recipe.id}")
+                       },
+                       onUserClick = { user: User ->
+                           navController.navigate("USER_PROFILE/${user.id}")
+                       },
+                       onRecipeClick = { recipe: Recipe ->
                            navController.navigate("RECIPE_DETAIL/${recipe.id}")
                        }
                    )
@@ -252,7 +270,13 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                     SearchScreen(
                         modifier = Modifier,
                         mainViewModel = mainViewModel,
-                        onSaveClick = { recipeToSave = it }
+                        onSaveClick = { recipe: Recipe -> recipeToSave = recipe },
+                        onUserClick = { user: User ->
+                            navController.navigate("USER_PROFILE/${user.id}")
+                        },
+                        onRecipeClick = { recipe: Recipe ->
+                            navController.navigate("RECIPE_DETAIL/${recipe.id}")
+                        }
                     )
                 }
 
@@ -261,7 +285,13 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                     RecipeBooksScreen(
                         modifier = Modifier,
                         mainViewModel = mainViewModel,
-                        onSaveClick = { recipeToSave = it }
+                        onSaveClick = { recipe: Recipe -> recipeToSave = recipe },
+                        onUserClick = { user: User ->
+                            navController.navigate("USER_PROFILE/${user.id}")
+                        },
+                        onRecipeClick = { recipe: Recipe ->
+                            navController.navigate("RECIPE_DETAIL/${recipe.id}")
+                        }
                     )
                 }
 
@@ -277,30 +307,37 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 }
                 // recipe detail, comments + edit recipe
                 composable("RECIPE_DETAIL/{recipeId}") { backStackEntry ->
-                    val recipeId = UUID.fromString(backStackEntry.arguments?.getString("recipeId"))
+                    val recipeIdStr = backStackEntry.arguments?.getString("recipeId")
+                    val recipeId = if (recipeIdStr != null) UUID.fromString(recipeIdStr) else null
                     val recipe = mainViewModel.recipes.find { it.id == recipeId }
                     if (recipe != null) {
                         RecipeDetailScreen(
                             recipe = recipe,
                             mainViewModel = mainViewModel,
-                            onBack = { navController.popBackStack() }
+                            onBack = { navController.popBackStack() },
+                            onUserClick = { user: User ->
+                                navController.navigate("USER_PROFILE/${user.id}")
+                            }
                         )
                     }
                 }
 
                 // user profile - unfollow
                 composable("USER_PROFILE/{userId}") { backStackEntry ->
-                    val userId = UUID.fromString(backStackEntry.arguments?.getString("userId"))
+                    val userIdStr = backStackEntry.arguments?.getString("userId")
+                    val userId = if (userIdStr != null) UUID.fromString(userIdStr) else null
                     var profileUser by remember { mutableStateOf<User?>(null) }
                     LaunchedEffect(userId) {
-                        profileUser = mainViewModel.userService.getUser((userId))
+                        if (userId != null) {
+                            profileUser = mainViewModel.userService.getUser((userId))
+                        }
                     }
                     profileUser?.let {
                         UserScreen(
                             profileUser = it,
                             mainViewModel = mainViewModel,
                             onBack = { navController.popBackStack() },
-                            onRecipeClick = { recipe ->
+                            onRecipeClick = { recipe: Recipe ->
                                 navController.navigate("RECIPE_DETAIL/${recipe.id}")
                             }
                         )
@@ -325,7 +362,9 @@ fun FeedScreen(
     modifier: Modifier = Modifier,
     mainViewModel: MainViewModel,
     onSaveClick: (Recipe) -> Unit,
-    onCommentClick: (Recipe) -> Unit
+    onCommentClick: (Recipe) -> Unit,
+    onUserClick: (User) -> Unit = {},
+    onRecipeClick: (Recipe) -> Unit = {}
 ) {
     LaunchedEffect(Unit) {
         if (mainViewModel.recipes.isEmpty()) {
@@ -340,7 +379,9 @@ fun FeedScreen(
                 isLiked = mainViewModel.isLiked(r.id),
                 onLikeClick = { mainViewModel.toggleLike(r.id) },
                 onCommentClick = { onCommentClick(r) },
-                onSaveClick = { onSaveClick(r) }
+                onSaveClick = { onSaveClick(r) },
+                onUserClick = onUserClick,
+                onRecipeClick = onRecipeClick
             )
         }
     }
@@ -350,7 +391,9 @@ fun FeedScreen(
 fun SearchScreen(
     modifier: Modifier = Modifier,
     mainViewModel: MainViewModel,
-    onSaveClick: (Recipe) -> Unit
+    onSaveClick: (Recipe) -> Unit,
+    onUserClick: (User) -> Unit = {},
+    onRecipeClick: (Recipe) -> Unit = {}
 ) {
     var categoryQuery by rememberSaveable { mutableStateOf("") }
     val selectedCategories = remember { mutableStateListOf<Category>() }
@@ -435,8 +478,10 @@ fun SearchScreen(
                     recipe = r,
                     isLiked = mainViewModel.isLiked(r.id),
                     onLikeClick = { mainViewModel.toggleLike(r.id) },
-                    onCommentClick = {},
-                    onSaveClick = { onSaveClick(r) }
+                    onCommentClick = { onRecipeClick(r) },
+                    onSaveClick = { onSaveClick(r) },
+                    onUserClick = onUserClick,
+                    onRecipeClick = onRecipeClick
                 )
             }
         }
@@ -583,7 +628,9 @@ fun CreatePostScreen(
 fun RecipeBooksScreen(
     modifier: Modifier = Modifier,
     mainViewModel: MainViewModel,
-    onSaveClick: (Recipe) -> Unit
+    onSaveClick: (Recipe) -> Unit,
+    onUserClick: (User) -> Unit = {},
+    onRecipeClick: (Recipe) -> Unit = {}
 ) {
     val currentUser = AuthService.currentUser
     if (currentUser == null) {
@@ -643,8 +690,10 @@ fun RecipeBooksScreen(
                             recipe = recipe,
                             isLiked = mainViewModel.isLiked(recipe.id),
                             onLikeClick = { mainViewModel.toggleLike(recipe.id) },
-                            onCommentClick = {},
-                            onSaveClick = { onSaveClick(recipe) }
+                            onCommentClick = { onRecipeClick(recipe) },
+                            onSaveClick = { onSaveClick(recipe) },
+                            onUserClick = onUserClick,
+                            onRecipeClick = onRecipeClick
                         )
                     }
                 }
@@ -784,12 +833,15 @@ fun FeedCard(
     isLiked: Boolean,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
-    onSaveClick: () -> Unit
+    onSaveClick: () -> Unit,
+    onUserClick: (User) -> Unit = {},
+    onRecipeClick: (Recipe) -> Unit = {}
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onRecipeClick(recipe) },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -801,7 +853,8 @@ fun FeedCard(
             // user info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.clickable { onUserClick(recipe.owner) }
             ) {
                 Box(
                     modifier = Modifier
@@ -904,16 +957,26 @@ private fun ActionButton(
 @Composable
 fun AppHeader(
     onProfileClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogoutClick: (() -> Unit)? = null
 ) {
     TopAppBar(
         title = {},
         actions = {
-            IconButton(onClick = onProfileClick) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Profile"
-                )
+            if (onLogoutClick != null) {
+                IconButton(onClick = onLogoutClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = "Logout"
+                    )
+                }
+            } else {
+                IconButton(onClick = onProfileClick) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Profile"
+                    )
+                }
             }
         },
         modifier = modifier

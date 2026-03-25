@@ -14,6 +14,8 @@ import com.squareup.moshi.JsonWriter
 import java.util.UUID
 import okhttp3.Interceptor
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 object NetworkModule {
     private const val BASE_URL = "https://hbv-501-h24.onrender.com/"
@@ -28,8 +30,31 @@ object NetworkModule {
         }
     }
 
+    private val localDateTimeAdapter = object : JsonAdapter<LocalDateTime>() {
+        private val formatter = DateTimeFormatter.ISO_DATE_TIME
+
+        override fun fromJson(reader: JsonReader): LocalDateTime? {
+            val dateStr = reader.nextString()
+            return try {
+                LocalDateTime.parse(dateStr, formatter)
+            } catch (e: Exception) {
+                // Handle cases where the string might be missing T or have other variations
+                try {
+                    LocalDateTime.parse(dateStr)
+                } catch (e2: Exception) {
+                    null
+                }
+            }
+        }
+
+        override fun toJson(writer: JsonWriter, value: LocalDateTime?) {
+            writer.value(value?.format(formatter))
+        }
+    }
+
     private val moshi = Moshi.Builder()
         .add(UUID::class.java, uuidAdapter)
+        .add(LocalDateTime::class.java, localDateTimeAdapter)
         .add(Date::class.java, Rfc3339DateJsonAdapter())
         .addLast(KotlinJsonAdapterFactory())
         .build()
