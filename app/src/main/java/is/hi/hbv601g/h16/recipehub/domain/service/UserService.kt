@@ -17,8 +17,8 @@ class UserService {
         userRepository.getUser(id)
     }
 
-    suspend fun updateUser(id: UUID, bio: String?, profilePictureUrl: String?): User? = withContext(Dispatchers.IO) {
-        userRepository.updateUser(id, bio, profilePictureUrl)
+    suspend fun updateUser(id: UUID, bio: String?, profilePictureData: ByteArray?, profilePictureType: String?): User? = withContext(Dispatchers.IO) {
+        userRepository.updateUser(id, bio, profilePictureData, profilePictureType)
     }
 
     suspend fun deleteUser(id: UUID): Boolean = withContext(Dispatchers.IO) {

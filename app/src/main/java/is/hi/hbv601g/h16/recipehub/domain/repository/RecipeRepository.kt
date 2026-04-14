@@ -21,7 +21,8 @@ class RecipeRepository {
         val request = RecipeRequestDTO(
             title = recipe.title,
             textContent = recipe.textContent,
-            imageUrls = recipe.images,
+            imageData = recipe.images.map { it.data },
+            imageType = recipe.images.map { it.imageType },
             categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
@@ -47,7 +48,8 @@ class RecipeRepository {
         val request = RecipeRequestDTO(
             title = recipe.title,
             textContent = recipe.textContent,
-            imageUrls = recipe.images,
+            imageData = recipe.images.map { it.data },
+            imageType = recipe.images.map { it.imageType },
             categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
@@ -91,7 +93,7 @@ class RecipeRepository {
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
-            images = dto.imageUrls,
+            images = dto.images.map { Recipe.RecipeImage(it.data, it.imageType) }.toSet(),
             creationDate = dto.creationDate ?: LocalDateTime.now(),
             editDate = dto.editDate ?: LocalDateTime.now(),
             rating = dto.rating,

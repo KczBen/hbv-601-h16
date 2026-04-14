@@ -5,7 +5,8 @@ import java.util.UUID
 data class UserResponseDTO(
     val id: UUID,
     val userName: String,
-    val profilePictureUrl: String?,
+    val profilePictureData: ByteArray?,
+    val profilePictureType: String?,
     val bio: String?,
     val myRecipes: Set<UUID>,
     val recipeBooks: Set<UUID>,

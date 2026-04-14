@@ -607,7 +607,8 @@ fun CreatePostScreen(
                             editDate = LocalDateTime.now(),
                             rating = 0f,
                             ratingCount = 0,
-                            categories = selectedCategories.toSet()
+                            categories = selectedCategories.toSet(),
+                            images = emptySet()
                         )
                         scope.launch {
                             if (recipeService.createRecipe(newRecipe)) {

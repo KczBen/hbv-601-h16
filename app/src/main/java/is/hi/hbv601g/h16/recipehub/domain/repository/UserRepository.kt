@@ -39,8 +39,8 @@ class UserRepository {
         }
     }
 
-    suspend fun updateUser(userUuid: UUID, bio: String?, profilePictureUrl: String?): User? {
-        val request = UserRequestDTO(profilePictureUrl, bio)
+    suspend fun updateUser(userUuid: UUID, bio: String?, profilePictureData: ByteArray?, profilePictureType: String?): User? {
+        val request = UserRequestDTO(profilePictureData, profilePictureType, bio)
         return try {
             val response = NetworkModule.apiService.updateUser(userUuid, request)
             if (response.isSuccessful) {
@@ -105,7 +105,8 @@ class UserRepository {
         return User(
             id = dto.id,
             userName = dto.userName,
-            profilePictureURL = dto.profilePictureUrl ?: "",
+            profilePictureData = dto.profilePictureData,
+            profilePictureType = dto.profilePictureType,
             bio = dto.bio ?: "",
             isBanned = dto.isBanned,
             isAdmin = dto.isAdmin,

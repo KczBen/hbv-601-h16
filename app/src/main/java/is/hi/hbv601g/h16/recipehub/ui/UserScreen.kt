@@ -144,15 +144,15 @@ fun UserScreen(
     if (showEditProfileDialog) {
         EditProfileDialog(
             currentBio = displayedUser.bio,
-            currentPictureUrl = displayedUser.profilePictureURL,
             onDismiss = { showEditProfileDialog = false },
-            onConfirm = { newBio, newPicUrl ->
+            onConfirm = { newBio, _ ->
                 showEditProfileDialog = false
                 scope.launch {
                     val updated = mainViewModel.userService.updateUser(
                         id = displayedUser.id,
                         bio = newBio,
-                        profilePictureUrl = newPicUrl.ifBlank { null }
+                        profilePictureData = null,
+                        profilePictureType = null
                     )
                     if (updated != null) {
                         displayedUser = updated   // update the UI
@@ -417,12 +417,11 @@ private fun ProfileRecipeCard(recipe: Recipe, onClick: () -> Unit) {
 @Composable
 fun EditProfileDialog(
     currentBio: String,
-    currentPictureUrl: String,
     onDismiss: () -> Unit,
     onConfirm: (bio: String, pictureUrl: String) -> Unit
 ) {
     var bio by remember { mutableStateOf(currentBio) }
-    var pictureUrl by remember { mutableStateOf(currentPictureUrl) }
+    var pictureUrl by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -436,15 +435,6 @@ fun EditProfileDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     supportingText = { Text("Tell others a bit about yourself") }
-                )
-                // do we want to have a link or open photo gallery?
-                OutlinedTextField(
-                    value = pictureUrl,
-                    onValueChange = { pictureUrl = it },
-                    label = { Text("Profile picture URL") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    supportingText = { Text("Paste a link to an image") }
                 )
             }
         },

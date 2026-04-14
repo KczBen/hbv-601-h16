@@ -86,7 +86,7 @@ class CategoryRepository {
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
-            images = dto.imageUrls,
+            images = dto.images.map { Recipe.RecipeImage(it.data, it.imageType) }.toSet(),
             creationDate = dto.creationDate ?: LocalDateTime.now(),
             editDate = dto.editDate ?: LocalDateTime.now(),
             rating = dto.rating,

@@ -5,6 +5,7 @@ import java.util.UUID
 data class RecipeRequestDTO(
     val title: String,
     val textContent: String,
-    val imageUrls: Set<String>,
+    val imageData: List<ByteArray> = emptyList(),
+    val imageType: List<String> = emptyList(),
     val categoryUuids: Set<UUID>
 )
