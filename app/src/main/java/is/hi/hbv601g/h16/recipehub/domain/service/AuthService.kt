@@ -29,14 +29,9 @@ class AuthService {
         val result = authRepository.login(username, password)
         if (result != null) {
             token = result.token
-            // Fetch full user details after login
+            // Fetch full user details after login to populate followers/following
             val userDetails = userService.getUser(result.userUuid)
-            currentUser = userDetails ?: User(
-                id = result.userUuid,
-                userName = username,
-                email = "",
-                passwordHash = ""
-            )
+            currentUser = userDetails?.copy(isLoggedIn = true)
             return@withContext true
         }
         return@withContext false
@@ -89,8 +84,13 @@ class AuthService {
     suspend fun tryAutoLogin(): Boolean = withContext(Dispatchers.IO) {
         val localUser = authRepository.getLoggedInUser()
         if (localUser != null) {
-            currentUser = localUser
             token = authRepository.getSavedToken()
+
+            // The local user from DB is missing followers/following
+            // Fetch full user from network
+            val fullUser = userService.getUser(localUser.id)
+            currentUser = (fullUser ?: localUser).copy(isLoggedIn = true)
+
             return@withContext true
         }
         return@withContext false
