@@ -158,6 +158,8 @@ fun RecipeDetailScreen(
                         IconButton(onClick = { showEditRecipeDialog = true }) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit recipe")
                         }
+                    }
+                    if (isOwner || currentUser?.isAdmin == true) {
                         IconButton(onClick = { showDeleteRecipeDialog = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete recipe", tint = MaterialTheme.colorScheme.error)
                         }
@@ -300,6 +302,7 @@ fun RecipeDetailScreen(
                         comment = comment,
                         // shows edit option only on the user's own comments
                         canEdit = currentUser?.id == comment.owner.id,
+                        canDelete = currentUser?.id == comment.owner.id || currentUser?.isAdmin == true,
                         onEditConfirm = { newText ->
                             mainViewModel.updateComment(
                                 recipeId = recipe.id,
@@ -339,6 +342,7 @@ fun RecipeDetailScreen(
 fun CommentItem(
     comment: Comment,
     canEdit: Boolean,
+    canDelete: Boolean = false,
     onEditConfirm: (String) -> Unit,
     onDeleteConfirm: () -> Unit,
     onUserClick: (User) -> Unit = {}
@@ -419,7 +423,7 @@ fun CommentItem(
                 )
             }
 
-            if (canEdit) {
+            if (canEdit || canDelete) {
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Comment options")
@@ -428,20 +432,25 @@ fun CommentItem(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
-                            onClick = {
-                                menuExpanded = false
-                                showEditDialog = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = {
-                                menuExpanded = false
-                                showDeleteDialog = true
-                            }
-                        )
+                        if (canEdit) {
+                            DropdownMenuItem(
+                                text = { Text("Edit") },
+                                onClick = {
+                                    menuExpanded = false
+                                    showEditDialog = true
+                                }
+                            )
+                        }
+                        if (canDelete) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    menuExpanded = false
+                                    showDeleteDialog = true
+
+                                }
+                            )
+                        }
                     }
                 }
             }
