@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -100,15 +101,16 @@ fun UserScreen(
     var displayedUser by remember { mutableStateOf(profileUser) }
 
     var userRecipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+    // Reactive filtering based on the mainViewModel.recipes list
+    val filteredUserRecipes = remember(mainViewModel.recipes, profileUser.id) {
+        mainViewModel.recipes.filter { it.owner.id == profileUser.id }
+    }
+
     LaunchedEffect(profileUser.id) {
         profileUser.id.let { uid ->
             mainViewModel.fetchRecipeBooks(uid)
-            // filter the global recipe list for this user's recipes
-            userRecipes = mainViewModel.recipes.filter { it.owner.id == uid }
-            if (userRecipes.isEmpty()) {
-                // recipes not cached yet - fetch all and filter
+            if (mainViewModel.recipes.none { it.owner.id == uid }) {
                 mainViewModel.fetchRecipes()
-                userRecipes = mainViewModel.recipes.filter { it.owner.id == uid }
             }
         }
     }
@@ -248,7 +250,7 @@ fun UserScreen(
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StatColumn(label = "Recipes", count = userRecipes.size)
+                    StatColumn(label = "Recipes", count = filteredUserRecipes.size)
                     StatColumn(label = "Followers", count = displayedUser.followers.size)
                     StatColumn(label = "Following", count = displayedUser.following.size)
                 }
@@ -313,7 +315,7 @@ fun UserScreen(
 
                 // recipes tab
                 0 -> {
-                    if (userRecipes.isEmpty()) {
+                    if (filteredUserRecipes.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -330,7 +332,7 @@ fun UserScreen(
                             }
                         }
                     } else {
-                        items(userRecipes) { recipe ->
+                        items(filteredUserRecipes) { recipe ->
                             ProfileRecipeCard(
                                 recipe = recipe,
                                 onClick = { onRecipeClick(recipe) }
@@ -364,6 +366,16 @@ fun UserScreen(
                         items(books) { book ->
                             RecipeBookCard(
                                 book = book,
+                                isOwnProfile = isOwnProfile,
+                                onDelete = {
+                                    mainViewModel.deleteRecipeBook(book.id) { success ->
+                                        if (!success) {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Failed to delete recipe book")
+                                            }
+                                        }
+                                    }
+                                },
                                 // RecipeBookCard exists in MainActivity.kt
                                 onClick = {}
                             )

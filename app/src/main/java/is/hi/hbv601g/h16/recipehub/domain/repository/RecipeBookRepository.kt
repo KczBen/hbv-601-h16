@@ -56,9 +56,14 @@ class RecipeBookRepository {
     suspend fun deleteRecipeBook(recipeBookUuid: UUID): Boolean {
         return try {
             val response = NetworkModule.apiService.deleteRecipeBook(recipeBookUuid)
-            if (response.isSuccessful) {
+            if (response.isSuccessful || response.code() == 204) {
+                recipeBookDao.deleteRecipeBook(recipeBookUuid)
+                recipeBookDao.deleteCrossRefsForBook(recipeBookUuid)
                 true
-            } else false
+            } else {
+                Log.e(TAG, "Delete failed with code: ${response.code()}")
+                false
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting recipe book", e)
             false

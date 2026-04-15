@@ -26,4 +26,7 @@ interface RecipeBookDao {
 
     @Query("DELETE FROM recipe_books WHERE ownerId = :userId")
     suspend fun deleteRecipeBooksForUser(userId: UUID)
+
+    @Query("DELETE FROM recipe_books WHERE id = :recipeBookId")
+    suspend fun deleteRecipeBook(recipeBookId: UUID)
 }
