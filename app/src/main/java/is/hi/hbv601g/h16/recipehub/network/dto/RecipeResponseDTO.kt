@@ -8,7 +8,7 @@ data class RecipeResponseDTO(
     val ownerId: UUID,
     val title: String,
     val textContent: String,
-    val images: Set<RecipeImageResponseDTO>,
+    val images: Set<RecipeImageResponseDTO>?,
     val creationDate: LocalDateTime?,
     val editDate: LocalDateTime?,
     val likes: Int,
@@ -17,7 +17,7 @@ data class RecipeResponseDTO(
     val categories: Set<CategoryResponseDTO>
 ) {
     data class RecipeImageResponseDTO(
-        val data: ByteArray,
+        val data: String,
         val imageType: String
     ) {
         override fun equals(other: Any?): Boolean {
@@ -26,14 +26,14 @@ data class RecipeResponseDTO(
 
             other as RecipeImageResponseDTO
 
-            if (!data.contentEquals(other.data)) return false
+            if (data != other.data) return false
             if (imageType != other.imageType) return false
 
             return true
         }
 
         override fun hashCode(): Int {
-            var result = data.contentHashCode()
+            var result = data.hashCode()
             result = 31 * result + imageType.hashCode()
             return result
         }

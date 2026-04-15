@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,7 +32,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
@@ -110,8 +115,6 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     val currentRoute = navBackStackEntry?.destination?.route
     val context = LocalContext.current
     var showLoginDialog by remember { mutableStateOf(false) }
-
-    val scope = rememberCoroutineScope()
 
     var recipeToSave by remember { mutableStateOf<Recipe?>(null) }
     var showCreateBookFromSave by remember { mutableStateOf(false) }
@@ -410,10 +413,10 @@ fun SearchScreen(
     var results by remember { mutableStateOf<List<Recipe>>(emptyList()) }
 
     LaunchedEffect(selectedCategories.size) {
-        if (selectedCategories.isNotEmpty()) {
-            results = mainViewModel.recipeService.getRecipeByCategory(selectedCategories.toSet())
+        results = if (selectedCategories.isNotEmpty()) {
+            mainViewModel.recipeService.getRecipeByCategory(selectedCategories.toSet())
         } else {
-            results = emptyList()
+            emptyList()
         }
     }
 
@@ -500,6 +503,22 @@ fun CreatePostScreen(
     val selectedCategories = remember { mutableStateListOf<Category>() }
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val selectedImages = remember { mutableStateListOf<Pair<ByteArray, String>>() }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            val bytes = inputStream?.readBytes()
+            val type = context.contentResolver.getType(it) ?: "image/jpeg"
+            if (bytes != null) {
+                selectedImages.add(bytes to type)
+            }
+        }
+    }
 
     var allCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
     LaunchedEffect(Unit) {
@@ -532,8 +551,56 @@ fun CreatePostScreen(
             label = { Text("Recipe Body") },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .height(150.dp)
         )
+
+        Column {
+            Text("Images", style = MaterialTheme.typography.titleMedium)
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(selectedImages) { pair ->
+                    val (data, type) = pair
+                    Box {
+                        ImageFromBytes(
+                            data = data,
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                        IconButton(
+                            onClick = { selectedImages.remove(pair) },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(24.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                    CircleShape
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+                item {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { imagePickerLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add Image")
+                    }
+                }
+            }
+        }
 
         Column {
             Text("Categories", style = MaterialTheme.typography.titleMedium)
@@ -608,7 +675,9 @@ fun CreatePostScreen(
                             rating = 0f,
                             ratingCount = 0,
                             categories = selectedCategories.toSet(),
-                            images = emptySet()
+                            images = selectedImages.map { (data, type) ->
+                                Recipe.RecipeImage(data, type)
+                            }.toSet()
                         )
                         scope.launch {
                             if (recipeService.createRecipe(newRecipe)) {
@@ -791,6 +860,7 @@ fun AddToBookDialog(
     onAddToBook: (RecipeBook) -> Unit,
     onCreateNewBook: () -> Unit
 ) {
+    // recipe is unused but may be used in future or required by caller
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add to Recipe Book") },
@@ -857,11 +927,13 @@ fun FeedCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.clickable { onUserClick(recipe.owner) }
             ) {
-                Box(
+                ImageFromBytes(
+                    data = recipe.owner.profilePictureData,
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentDescription = "Profile picture"
                 )
                 Column {
                     Text(
@@ -915,6 +987,24 @@ fun FeedCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                if (recipe.images.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(recipe.images.toList()) { image ->
+                            ImageFromBytes(
+                                data = image.data,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentDescription = "Recipe image"
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = recipe.textContent,
                     style = MaterialTheme.typography.bodyMedium,

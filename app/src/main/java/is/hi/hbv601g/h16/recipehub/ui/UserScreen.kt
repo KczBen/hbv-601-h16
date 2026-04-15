@@ -1,5 +1,8 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,13 +17,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -53,6 +59,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -144,15 +152,16 @@ fun UserScreen(
     if (showEditProfileDialog) {
         EditProfileDialog(
             currentBio = displayedUser.bio,
+            currentPictureData = displayedUser.profilePictureData,
             onDismiss = { showEditProfileDialog = false },
-            onConfirm = { newBio, _ ->
+            onConfirm = { newBio, newData, newType ->
                 showEditProfileDialog = false
                 scope.launch {
                     val updated = mainViewModel.userService.updateUser(
                         id = displayedUser.id,
                         bio = newBio,
-                        profilePictureData = null,
-                        profilePictureType = null
+                        profilePictureData = newData,
+                        profilePictureType = newType
                     )
                     if (updated != null) {
                         displayedUser = updated   // update the UI
@@ -198,13 +207,13 @@ fun UserScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // avatar
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Profile picture",
+                ImageFromBytes(
+                    data = displayedUser.profilePictureData,
                     modifier = Modifier
                         .size(96.dp)
-                        .clip(CircleShape),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentDescription = "Profile picture"
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -403,6 +412,25 @@ private fun ProfileRecipeCard(recipe: Recipe, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
+
+            if (recipe.images.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(recipe.images.toList()) { image ->
+                        ImageFromBytes(
+                            data = image.data,
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentDescription = "Recipe image"
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
             Text(
                 text = recipe.textContent,
                 style = MaterialTheme.typography.bodySmall,
@@ -417,17 +445,60 @@ private fun ProfileRecipeCard(recipe: Recipe, onClick: () -> Unit) {
 @Composable
 fun EditProfileDialog(
     currentBio: String,
+    currentPictureData: ByteArray?,
     onDismiss: () -> Unit,
-    onConfirm: (bio: String, pictureUrl: String) -> Unit
+    onConfirm: (bio: String, pictureData: ByteArray?, pictureType: String?) -> Unit
 ) {
     var bio by remember { mutableStateOf(currentBio) }
-    var pictureUrl by remember { mutableStateOf("") }
+    var pictureData by remember { mutableStateOf(currentPictureData) }
+    var pictureType by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            val bytes = inputStream?.readBytes()
+            val type = context.contentResolver.getType(it) ?: "image/jpeg"
+            if (bytes != null) {
+                pictureData = bytes
+                pictureType = type
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Profile") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { imagePickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (pictureData != null) {
+                        ImageFromBytes(
+                            data = pictureData,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.AddPhotoAlternate,
+                            contentDescription = "Change picture",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
@@ -439,7 +510,7 @@ fun EditProfileDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(bio, pictureUrl) }) {
+            Button(onClick = { onConfirm(bio, pictureData, pictureType) }) {
                 Text("Save")
             }
         },

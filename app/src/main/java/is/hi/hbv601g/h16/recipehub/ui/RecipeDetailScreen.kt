@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,9 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -49,6 +53,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
@@ -179,13 +184,47 @@ fun RecipeDetailScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "by ${recipe.owner.userName}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.clickable { onUserClick(recipe.owner) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                ) {
+                    ImageFromBytes(
+                        data = recipe.owner.profilePictureData,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentDescription = "Profile picture"
+                    )
+                    Text(
+                        text = "by ${recipe.owner.userName}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (recipe.images.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(recipe.images.toList()) { image ->
+                            ImageFromBytes(
+                                data = image.data,
+                                modifier = Modifier
+                                    .height(240.dp)
+                                    .width(320.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentDescription = "Recipe image"
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Text(
                     text = recipe.textContent,
                     style = MaterialTheme.typography.bodyLarge
@@ -278,6 +317,15 @@ fun CommentItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.Top
         ) {
+            ImageFromBytes(
+                data = comment.owner.profilePictureData,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentDescription = "Profile picture"
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = comment.owner.userName,

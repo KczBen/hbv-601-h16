@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.repository
 
+import android.util.Base64
 import android.util.Log
 import `is`.hi.hbv601g.h16.recipehub.model.User
 import `is`.hi.hbv601g.h16.recipehub.network.NetworkModule
@@ -40,7 +41,11 @@ class UserRepository {
     }
 
     suspend fun updateUser(userUuid: UUID, bio: String?, profilePictureData: ByteArray?, profilePictureType: String?): User? {
-        val request = UserRequestDTO(profilePictureData, profilePictureType, bio)
+        val request = UserRequestDTO(
+            profilePictureData = profilePictureData?.let { Base64.encodeToString(it, Base64.NO_WRAP) },
+            profilePictureType = profilePictureType,
+            bio = bio
+        )
         return try {
             val response = NetworkModule.apiService.updateUser(userUuid, request)
             if (response.isSuccessful) {
@@ -105,7 +110,7 @@ class UserRepository {
         return User(
             id = dto.id,
             userName = dto.userName,
-            profilePictureData = dto.profilePictureData,
+            profilePictureData = dto.profilePictureData?.let { Base64.decode(it, Base64.NO_WRAP) },
             profilePictureType = dto.profilePictureType,
             bio = dto.bio ?: "",
             isBanned = dto.isBanned,
