@@ -262,9 +262,9 @@ class MainViewModel(
         }
     }
 
-    fun createComment(recipeId: UUID, textContent: String, onResult: (Boolean) -> Unit) {
+    fun createComment(recipeId: UUID, textContent: String, images: Set<Comment.CommentImage> = emptySet(), onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            val created = commentService.createComment(recipeId, textContent)
+            val created = commentService.createComment(recipeId, textContent, images)
             if (created != null) {
                 // Refresh comments to include the new one (and ensure it's enriched with owner info)
                 fetchComments(recipeId)
@@ -275,9 +275,9 @@ class MainViewModel(
         }
     }
 
-    fun updateComment(recipeId: UUID, commentId: UUID, newText: String, onResult: (Boolean) -> Unit) {
+    fun updateComment(recipeId: UUID, commentId: UUID, newText: String, images: Set<Comment.CommentImage> = emptySet(), onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            val updated = commentService.updateComment(recipeId, commentId, newText)
+            val updated = commentService.updateComment(recipeId, commentId, newText, images)
             if (updated != null) {
                 // Replace the old comment in our local list so the UI updates instantly
                 comments = comments.map { if (it.id == commentId) updated else it }
@@ -287,6 +287,7 @@ class MainViewModel(
             }
         }
     }
+
 
     fun deleteComment(recipeId: UUID, commentId: UUID, onResult: (Boolean) -> Unit) {
         val currentUser = AuthService.currentUser ?: return onResult(false)

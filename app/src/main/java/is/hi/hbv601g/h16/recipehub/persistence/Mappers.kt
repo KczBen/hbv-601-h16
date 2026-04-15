@@ -4,6 +4,7 @@ import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.RecipeBook
 import `is`.hi.hbv601g.h16.recipehub.model.User
+import `is`.hi.hbv601g.h16.recipehub.util.ImageFileStorage
 
 fun UserEntity.toModel(): User {
     return User(
@@ -11,7 +12,7 @@ fun UserEntity.toModel(): User {
         userName = userName,
         email = email,
         passwordHash = passwordHash,
-        profilePictureData = profilePictureData,
+        profilePictureData = ImageFileStorage.loadImage(profilePicturePath),
         profilePictureType = profilePictureType,
         bio = bio,
         isBanned = isBanned,
@@ -26,7 +27,7 @@ fun User.toEntity(): UserEntity {
         userName = userName,
         email = email,
         passwordHash = passwordHash,
-        profilePictureData = profilePictureData,
+        profilePicturePath = ImageFileStorage.saveImage(profilePictureData),
         profilePictureType = profilePictureType,
         bio = bio,
         isBanned = isBanned,

@@ -9,7 +9,7 @@ import java.util.UUID
 class CommentService {
     private val commentRepository = CommentRepository()
 
-    suspend fun createComment(recipeId: UUID, textContent: String, images: Set<String> = emptySet()): Comment? = withContext(Dispatchers.IO) {
+    suspend fun createComment(recipeId: UUID, textContent: String, images: Set<Comment.CommentImage> = emptySet()): Comment? = withContext(Dispatchers.IO) {
         commentRepository.createComment(recipeId, textContent, images)
     }
 
@@ -17,9 +17,10 @@ class CommentService {
         commentRepository.deleteComment(recipeId, commentId)
     }
 
-    suspend fun updateComment(recipeId: UUID, commentId: UUID, textContent: String, images: Set<String> = emptySet()): Comment? = withContext(Dispatchers.IO) {
+    suspend fun updateComment(recipeId: UUID, commentId: UUID, textContent: String, images: Set<Comment.CommentImage> = emptySet()): Comment? = withContext(Dispatchers.IO) {
         commentRepository.updateComment(recipeId, commentId, textContent, images)
     }
+
 
     suspend fun getComments(recipeId: UUID, page: Int, pageSize: Int): List<Comment> = withContext(Dispatchers.IO) {
         commentRepository.getComments(recipeId, page, pageSize)

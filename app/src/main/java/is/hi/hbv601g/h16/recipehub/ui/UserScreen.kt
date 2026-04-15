@@ -1,5 +1,8 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -33,6 +37,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -65,10 +71,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -466,6 +475,19 @@ fun EditProfileDialog(
     var pictureType by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun createImageUri(): Uri {
+        val directory = File(context.cacheDir, "profile_images")
+        if (!directory.exists()) directory.mkdirs()
+        val file = File.createTempFile("profile_image_", ".jpg", directory)
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -480,6 +502,31 @@ fun EditProfileDialog(
         }
     }
 
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempImageUri?.let { uri ->
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                if (bytes != null) {
+                    pictureData = bytes
+                    pictureType = "image/jpeg"
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            val uri = createImageUri()
+            tempImageUri = uri
+            cameraLauncher.launch(uri)
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Profile") },
@@ -489,12 +536,13 @@ fun EditProfileDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                var showImageSourceMenu by remember { mutableStateOf(false) }
                 Box(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { imagePickerLauncher.launch("image/*") },
+                        .clickable { showImageSourceMenu = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (pictureData != null) {
@@ -509,7 +557,42 @@ fun EditProfileDialog(
                             modifier = Modifier.size(32.dp)
                         )
                     }
+
+                    DropdownMenu(
+                        expanded = showImageSourceMenu,
+                        onDismissRequest = { showImageSourceMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Gallery") },
+                            onClick = {
+                                showImageSourceMenu = false
+                                imagePickerLauncher.launch("image/*")
+                            },
+                            leadingIcon = { Icon(Icons.Default.AddPhotoAlternate, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Camera") },
+                            onClick = {
+                                showImageSourceMenu = false
+                                when (PackageManager.PERMISSION_GRANTED) {
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.CAMERA
+                                    ) -> {
+                                        val uri = createImageUri()
+                                        tempImageUri = uri
+                                        cameraLauncher.launch(uri)
+                                    }
+                                    else -> {
+                                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Default.CameraAlt, null) }
+                        )
+                    }
                 }
+
 
                 OutlinedTextField(
                     value = bio,
