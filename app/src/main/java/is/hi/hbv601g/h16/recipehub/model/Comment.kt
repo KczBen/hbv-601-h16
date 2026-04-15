@@ -10,8 +10,13 @@ data class Comment(
     val creationDate: LocalDateTime,
     val editDate: LocalDateTime,
     val textContent: String,
-    val images: Set<String>?,
+    val images: Set<CommentImage> = emptySet(),
 ) {
+    data class CommentImage(
+        val data: ByteArray,
+        val imageType: String
+    )
+
     init {
         require(textContent.isNotBlank()) {"Comment cannot be blank"}
     }

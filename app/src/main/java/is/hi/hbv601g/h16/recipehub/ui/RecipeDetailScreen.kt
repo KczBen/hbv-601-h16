@@ -1,5 +1,10 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +28,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -48,6 +56,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,13 +64,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
 import `is`.hi.hbv601g.h16.recipehub.model.Comment
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +94,58 @@ fun RecipeDetailScreen(
     var showEditRecipeDialog by remember { mutableStateOf(false) }
     var showDeleteRecipeDialog by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
+    val selectedCommentImages = remember { mutableStateListOf<Pair<ByteArray, String>>() }
+
+    val context = LocalContext.current
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun createImageUri(): Uri {
+        val directory = File(context.cacheDir, "comment_images")
+        if (!directory.exists()) directory.mkdirs()
+        val file = File.createTempFile("comment_image_", ".jpg", directory)
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            val bytes = inputStream?.readBytes()
+            val type = context.contentResolver.getType(it) ?: "image/jpeg"
+            if (bytes != null) {
+                selectedCommentImages.add(bytes to type)
+            }
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempImageUri?.let { uri ->
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                if (bytes != null) {
+                    selectedCommentImages.add(bytes to "image/jpeg")
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            val uri = createImageUri()
+            tempImageUri = uri
+            cameraLauncher.launch(uri)
+        }
+    }
 
     // load comments when the screen first opens
     LaunchedEffect(recipe.id) {
@@ -91,10 +156,11 @@ fun RecipeDetailScreen(
         EditRecipeDialog(
             recipe = recipe,
             onDismiss = { showEditRecipeDialog = false },
-            onConfirm = { updatedTitle, updatedText ->
+            onConfirm = { updatedTitle, updatedText, updatedImages ->
                 val updatedRecipe = recipe.copy(
                     title = updatedTitle,
                     textContent = updatedText,
+                    images = updatedImages,
                     editDate = LocalDateTime.now()
                 )
                 mainViewModel.updateRecipe(updatedRecipe) { success ->
@@ -173,48 +239,138 @@ fun RecipeDetailScreen(
                     tonalElevation = 3.dp,
                     shadowElevation = 8.dp
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
                             .navigationBarsPadding()
-                            .imePadding(),
-                        verticalAlignment = Alignment.CenterVertically
+                            .imePadding()
                     ) {
-                        OutlinedTextField(
-                            value = commentText,
-                            onValueChange = { commentText = it },
-                            placeholder = { Text("Write a comment...") },
-                            modifier = Modifier.weight(1f),
-                            maxLines = 4,
-                            shape = RoundedCornerShape(24.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
-                                if (commentText.isNotBlank()) {
-                                    mainViewModel.createComment(recipe.id, commentText) { success ->
-                                        if (success) {
-                                            commentText = ""
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Comment posted!")
-                                            }
-                                        } else {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("Failed to post comment")
-                                            }
+                        if (selectedCommentImages.isNotEmpty()) {
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(selectedCommentImages) { pair ->
+                                    val (data, type) = pair
+                                    Box {
+                                        ImageFromBytes(
+                                            data = data,
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                        )
+                                        IconButton(
+                                            onClick = { selectedCommentImages.remove(pair) },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .size(20.dp)
+                                                .background(
+                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                                    CircleShape
+                                                )
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove",
+                                                modifier = Modifier.size(14.dp)
+                                            )
                                         }
                                     }
                                 }
-                            },
-                            enabled = commentText.isNotBlank()
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                            var showImageSourceMenu by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(onClick = { showImageSourceMenu = true }) {
+                                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add image")
+                                }
+                                DropdownMenu(
+                                    expanded = showImageSourceMenu,
+                                    onDismissRequest = { showImageSourceMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Gallery") },
+                                        onClick = {
+                                            showImageSourceMenu = false
+                                            imagePickerLauncher.launch("image/*")
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.AddPhotoAlternate, null) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Camera") },
+                                        onClick = {
+                                            showImageSourceMenu = false
+                                            when (PackageManager.PERMISSION_GRANTED) {
+                                                ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.CAMERA
+                                                ) -> {
+                                                    val uri = createImageUri()
+                                                    tempImageUri = uri
+                                                    cameraLauncher.launch(uri)
+                                                }
+                                                else -> {
+                                                    permissionLauncher.launch(Manifest.permission.CAMERA)
+                                                }
+                                            }
+                                        },
+                                        leadingIcon = { Icon(Icons.Default.CameraAlt, null) }
+                                    )
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = commentText,
+                                onValueChange = { commentText = it },
+                                placeholder = { Text("Write a comment...") },
+                                modifier = Modifier.weight(1f),
+                                maxLines = 4,
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            IconButton(
+                                onClick = {
+                                    if (commentText.isNotBlank()) {
+                                        mainViewModel.createComment(
+                                            recipe.id,
+                                            commentText,
+                                            selectedCommentImages.map { (data, type) ->
+                                                Comment.CommentImage(data, type)
+                                            }.toSet()
+                                        ) { success ->
+                                            if (success) {
+                                                commentText = ""
+                                                selectedCommentImages.clear()
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Comment posted!")
+                                                }
+                                            } else {
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Failed to post comment")
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = commentText.isNotBlank()
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                            }
                         }
                     }
                 }
             }
         }
+
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -303,11 +459,12 @@ fun RecipeDetailScreen(
                         // shows edit option only on the user's own comments
                         canEdit = currentUser?.id == comment.owner.id,
                         canDelete = currentUser?.id == comment.owner.id || currentUser?.isAdmin == true,
-                        onEditConfirm = { newText ->
+                        onEditConfirm = { newText, newImages ->
                             mainViewModel.updateComment(
                                 recipeId = recipe.id,
                                 commentId = comment.id!!,
-                                newText = newText
+                                newText = newText,
+                                images = newImages
                             ) { success ->
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
@@ -343,7 +500,7 @@ fun CommentItem(
     comment: Comment,
     canEdit: Boolean,
     canDelete: Boolean = false,
-    onEditConfirm: (String) -> Unit,
+    onEditConfirm: (String, Set<Comment.CommentImage>) -> Unit,
     onDeleteConfirm: () -> Unit,
     onUserClick: (User) -> Unit = {}
 ) {
@@ -355,10 +512,11 @@ fun CommentItem(
     if (showEditDialog) {
         EditCommentDialog(
             currentText = comment.textContent,
+            currentImages = comment.images,
             onDismiss = { showEditDialog = false },
-            onConfirm = { newText ->
+            onConfirm = { newText, newImages ->
                 showEditDialog = false
-                onEditConfirm(newText)
+                onEditConfirm(newText, newImages)
             }
         )
     }
@@ -421,6 +579,23 @@ fun CommentItem(
                     text = comment.textContent,
                     style = MaterialTheme.typography.bodyMedium
                 )
+                if (comment.images.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(comment.images.toList()) { image ->
+                            ImageFromBytes(
+                                data = image.data,
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentDescription = "Comment image"
+                            )
+                        }
+                    }
+                }
             }
 
             if (canEdit || canDelete) {
@@ -461,26 +636,158 @@ fun CommentItem(
 @Composable
 fun EditCommentDialog(
     currentText: String,
+    currentImages: Set<Comment.CommentImage>,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String, Set<Comment.CommentImage>) -> Unit
 ) {
     var editedText by remember { mutableStateOf(currentText) }
+    val editedImages = remember {
+        mutableStateListOf<Pair<ByteArray, String>>().apply {
+            addAll(currentImages.map { it.data to it.imageType })
+        }
+    }
+
+    val context = LocalContext.current
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val bytes = context.contentResolver.openInputStream(it)?.readBytes()
+            val type = context.contentResolver.getType(it) ?: "image/jpeg"
+            if (bytes != null) {
+                editedImages.add(bytes to type)
+            }
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempImageUri?.let { uri ->
+                val bytes = context.contentResolver.openInputStream(uri)?.readBytes()
+                val type = context.contentResolver.getType(uri) ?: "image/jpeg"
+                if (bytes != null) {
+                    editedImages.add(bytes to type)
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    fun createImageUri(): Uri {
+        val file = File(context.cacheDir, "edit_comment_capture_${System.currentTimeMillis()}.jpg")
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Comment") },
         text = {
-            OutlinedTextField(
-                value = editedText,
-                onValueChange = { editedText = it },
-                label = { Text("Comment") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = editedText,
+                    onValueChange = { editedText = it },
+                    label = { Text("Comment") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+
+                if (editedImages.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(editedImages) { pair ->
+                            val (data, _) = pair
+                            Box {
+                                ImageFromBytes(
+                                    data = data,
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                )
+                                IconButton(
+                                    onClick = { editedImages.remove(pair) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(20.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row {
+                    var showImageSourceMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showImageSourceMenu = true }) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add image")
+                        }
+                        DropdownMenu(
+                            expanded = showImageSourceMenu,
+                            onDismissRequest = { showImageSourceMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Gallery") },
+                                onClick = {
+                                    showImageSourceMenu = false
+                                    imagePickerLauncher.launch("image/*")
+                                },
+                                leadingIcon = { Icon(Icons.Default.AddPhotoAlternate, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Camera") },
+                                onClick = {
+                                    showImageSourceMenu = false
+                                    when (PackageManager.PERMISSION_GRANTED) {
+                                        ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.CAMERA
+                                        ) -> {
+                                            val uri = createImageUri()
+                                            tempImageUri = uri
+                                            cameraLauncher.launch(uri)
+                                        }
+                                        else -> {
+                                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                                        }
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.CameraAlt, null) }
+                            )
+                        }
+                    }
+                }
+            }
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(editedText) },
+                onClick = {
+                    onConfirm(
+                        editedText,
+                        editedImages.map { Comment.CommentImage(it.first, it.second) }.toSet()
+                    )
+                },
                 enabled = editedText.isNotBlank()
             ) {
                 Text("Save")
@@ -498,10 +805,64 @@ fun EditCommentDialog(
 fun EditRecipeDialog(
     recipe: Recipe,
     onDismiss: () -> Unit,
-    onConfirm: (title: String, textContent: String) -> Unit
+    onConfirm: (title: String, textContent: String, images: Set<Recipe.RecipeImage>) -> Unit
 ) {
     var editedTitle by remember { mutableStateOf(recipe.title) }
     var editedText by remember { mutableStateOf(recipe.textContent) }
+    val editedImages = remember {
+        mutableStateListOf<Recipe.RecipeImage>().apply { addAll(recipe.images) }
+    }
+
+    val context = LocalContext.current
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    fun createImageUri(): Uri {
+        val directory = File(context.cacheDir, "recipe_images")
+        if (!directory.exists()) directory.mkdirs()
+        val file = File.createTempFile("recipe_image_", ".jpg", directory)
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+    }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            val bytes = inputStream?.readBytes()
+            val type = context.contentResolver.getType(it) ?: "image/jpeg"
+            if (bytes != null) {
+                editedImages.add(Recipe.RecipeImage(bytes, type))
+            }
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            tempImageUri?.let { uri ->
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                if (bytes != null) {
+                    editedImages.add(Recipe.RecipeImage(bytes, "image/jpeg"))
+                }
+            }
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            val uri = createImageUri()
+            tempImageUri = uri
+            cameraLauncher.launch(uri)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -523,11 +884,96 @@ fun EditRecipeDialog(
                     minLines = 4,
                     supportingText = { Text("${editedText.length}/${Recipe.MAX_TEXT_LENGTH}") }
                 )
+
+                Text("Images", style = MaterialTheme.typography.titleMedium)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(editedImages) { img ->
+                        Box {
+                            ImageFromBytes(
+                                data = img.data,
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                            IconButton(
+                                onClick = { editedImages.remove(img) },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(24.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                    item {
+                        var showImageSourceMenu by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { showImageSourceMenu = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddPhotoAlternate,
+                                contentDescription = "Add image"
+                            )
+                            DropdownMenu(
+                                expanded = showImageSourceMenu,
+                                onDismissRequest = { showImageSourceMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Gallery") },
+                                    onClick = {
+                                        showImageSourceMenu = false
+                                        imagePickerLauncher.launch("image/*")
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.AddPhotoAlternate,
+                                            null
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Camera") },
+                                    onClick = {
+                                        showImageSourceMenu = false
+                                        val permissionCheckResult = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.CAMERA
+                                        )
+                                        if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+                                            val uri = createImageUri()
+                                            tempImageUri = uri
+                                            cameraLauncher.launch(uri)
+                                        } else {
+                                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                                        }
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.CameraAlt, null) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(editedTitle, editedText) },
+                onClick = { onConfirm(editedTitle, editedText, editedImages.toSet()) },
                 enabled = editedTitle.isNotBlank()
                         && editedText.isNotBlank()
                         && editedTitle.length <= Recipe.MAX_TITLE_LENGTH

@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.repository
 
+import android.util.Base64
 import android.util.Log
 import `is`.hi.hbv601g.h16.recipehub.model.Comment
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
@@ -16,8 +17,12 @@ class CommentRepository {
         private const val TAG = "CommentRepository"
     }
 
-    suspend fun createComment(recipeUuid: UUID, textContent: String, images: Set<String>): Comment? {
-        val request = CommentRequestDTO(textContent, images)
+    suspend fun createComment(recipeUuid: UUID, textContent: String, images: Set<Comment.CommentImage>): Comment? {
+        val request = CommentRequestDTO(
+            textContent = textContent,
+            imageData = images.map { Base64.encodeToString(it.data, Base64.NO_WRAP) },
+            imageType = images.map { it.imageType }
+        )
         return try {
             val response = NetworkModule.apiService.createComment(recipeUuid, request)
             if (response.isSuccessful) {
@@ -42,8 +47,12 @@ class CommentRepository {
         }
     }
 
-    suspend fun updateComment(recipeUuid: UUID, commentUuid: UUID, textContent: String, images: Set<String>): Comment? {
-        val request = CommentRequestDTO(textContent, images)
+    suspend fun updateComment(recipeUuid: UUID, commentUuid: UUID, textContent: String, images: Set<Comment.CommentImage>): Comment? {
+        val request = CommentRequestDTO(
+            textContent = textContent,
+            imageData = images.map { Base64.encodeToString(it.data, Base64.NO_WRAP) },
+            imageType = images.map { it.imageType }
+        )
         return try {
             val response = NetworkModule.apiService.updateComment(recipeUuid, commentUuid, request)
             if (response.isSuccessful) {
@@ -54,6 +63,7 @@ class CommentRepository {
             null
         }
     }
+
 
     suspend fun getComments(recipeId: UUID, page: Int, pageSize: Int): List<Comment> {
         return try {
@@ -104,7 +114,12 @@ class CommentRepository {
             creationDate = dto.creationDate,
             editDate = dto.editDate ?: dto.creationDate,
             textContent = dto.textContent,
-            images = dto.images
+            images = dto.images?.map {
+                Comment.CommentImage(
+                    Base64.decode(it.data, Base64.NO_WRAP),
+                    it.imageType
+                )
+            }?.toSet() ?: emptySet()
         )
     }
 }

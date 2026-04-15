@@ -18,7 +18,7 @@ import `is`.hi.hbv601g.h16.recipehub.persistence.dao.UserDao
         RecipeBookRecipeCrossRef::class,
         RecipeCategoryCrossRef::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
