@@ -289,6 +289,11 @@ class MainViewModel(
     }
 
     fun deleteComment(recipeId: UUID, commentId: UUID, onResult: (Boolean) -> Unit) {
+        val currentUser = AuthService.currentUser ?: return onResult(false)
+        val comment = comments.find { it.id == commentId } ?: return onResult(false)
+
+        if (currentUser.id != comment.owner.id && !currentUser.isAdmin) return onResult(false)
+
         viewModelScope.launch {
             val success = commentService.deleteComment(recipeId, commentId)
             if (success) {
