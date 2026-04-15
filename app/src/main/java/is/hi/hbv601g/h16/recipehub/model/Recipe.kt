@@ -8,7 +8,7 @@ data class Recipe(
     val owner: User,
     val title: String,
     val textContent: String,
-    val images: Set<String> = setOf(),
+    val images: Set<RecipeImage> = setOf(),
     val creationDate: LocalDateTime = LocalDateTime.now(),
     val editDate: LocalDateTime = LocalDateTime.now(),
     val likes: Set<Like> = setOf(),
@@ -17,6 +17,11 @@ data class Recipe(
     val comments: Set<Comment> = setOf(),
     val categories: Set<Category> = setOf()
 ) {
+    data class RecipeImage(
+        val data: ByteArray,
+        val imageType: String
+    )
+
     companion object {
         const val MAX_TITLE_LENGTH = 100
         const val MAX_TEXT_LENGTH = 5000

@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.repository
 
+import android.util.Base64
 import android.util.Log
 import `is`.hi.hbv601g.h16.recipehub.model.Category
 import `is`.hi.hbv601g.h16.recipehub.model.Recipe
@@ -21,7 +22,8 @@ class RecipeRepository {
         val request = RecipeRequestDTO(
             title = recipe.title,
             textContent = recipe.textContent,
-            imageUrls = recipe.images,
+            imageData = recipe.images.map { Base64.encodeToString(it.data, Base64.NO_WRAP) },
+            imageType = recipe.images.map { it.imageType },
             categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
@@ -47,7 +49,8 @@ class RecipeRepository {
         val request = RecipeRequestDTO(
             title = recipe.title,
             textContent = recipe.textContent,
-            imageUrls = recipe.images,
+            imageData = recipe.images.map { Base64.encodeToString(it.data, Base64.NO_WRAP) },
+            imageType = recipe.images.map { it.imageType },
             categoryUuids = recipe.categories.map { it.id }.toSet()
         )
         return try {
@@ -91,7 +94,12 @@ class RecipeRepository {
             owner = User(id = dto.ownerId),
             title = dto.title,
             textContent = dto.textContent,
-            images = dto.imageUrls,
+            images = dto.images?.map {
+                Recipe.RecipeImage(
+                    Base64.decode(it.data, Base64.NO_WRAP),
+                    it.imageType
+                )
+            }?.toSet() ?: emptySet(),
             creationDate = dto.creationDate ?: LocalDateTime.now(),
             editDate = dto.editDate ?: LocalDateTime.now(),
             rating = dto.rating,

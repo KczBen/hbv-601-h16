@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,7 +32,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
@@ -39,6 +45,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -110,8 +117,6 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
     val currentRoute = navBackStackEntry?.destination?.route
     val context = LocalContext.current
     var showLoginDialog by remember { mutableStateOf(false) }
-
-    val scope = rememberCoroutineScope()
 
     var recipeToSave by remember { mutableStateOf<Recipe?>(null) }
     var showCreateBookFromSave by remember { mutableStateOf(false) }
@@ -410,10 +415,10 @@ fun SearchScreen(
     var results by remember { mutableStateOf<List<Recipe>>(emptyList()) }
 
     LaunchedEffect(selectedCategories.size) {
-        if (selectedCategories.isNotEmpty()) {
-            results = mainViewModel.recipeService.getRecipeByCategory(selectedCategories.toSet())
+        results = if (selectedCategories.isNotEmpty()) {
+            mainViewModel.recipeService.getRecipeByCategory(selectedCategories.toSet())
         } else {
-            results = emptyList()
+            emptyList()
         }
     }
 
@@ -489,142 +494,6 @@ fun SearchScreen(
 }
 
 @Composable
-fun CreatePostScreen(
-    recipeService: RecipeService,
-    categoryService: CategoryService,
-    onPostCreated: () -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var textContent by remember { mutableStateOf("") }
-    var categoryQuery by remember { mutableStateOf("") }
-    val selectedCategories = remember { mutableStateListOf<Category>() }
-    var expanded by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    var allCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
-    LaunchedEffect(Unit) {
-        allCategories = categoryService.getAllCategories(0, 100).toList()
-    }
-
-    val filteredCategories = allCategories.filter {
-        it.name.contains(categoryQuery, ignoreCase = true) && it !in selectedCategories
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text("Create a New Recipe", style = MaterialTheme.typography.headlineMedium)
-
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("Title") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = textContent,
-            onValueChange = { textContent = it },
-            label = { Text("Recipe Body") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-        )
-
-        Column {
-            Text("Categories", style = MaterialTheme.typography.titleMedium)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                selectedCategories.forEach { category ->
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.clickable { selectedCategories.remove(category) }
-                    ) {
-                        Text(
-                            text = category.name,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-            }
-
-            Box {
-                OutlinedTextField(
-                    value = categoryQuery,
-                    onValueChange = {
-                        categoryQuery = it
-                        expanded = it.isNotEmpty()
-                    },
-                    label = { Text("Add Category") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                DropdownMenu(
-                    expanded = expanded && filteredCategories.isNotEmpty(),
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                ) {
-                    filteredCategories.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category.name) },
-                            onClick = {
-                                selectedCategories.add(category)
-                                categoryQuery = ""
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onPostCreated) {
-                Text("Cancel")
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = {
-                    val user = AuthService.currentUser
-                    if (user != null && title.isNotBlank() && textContent.isNotBlank()) {
-                        val newRecipe = Recipe(
-                            id = UUID.randomUUID(),
-                            owner = user,
-                            title = title,
-                            textContent = textContent,
-                            creationDate = LocalDateTime.now(),
-                            editDate = LocalDateTime.now(),
-                            rating = 0f,
-                            ratingCount = 0,
-                            categories = selectedCategories.toSet()
-                        )
-                        scope.launch {
-                            if (recipeService.createRecipe(newRecipe)) {
-                                onPostCreated()
-                            }
-                        }
-                    }
-                },
-                enabled = title.isNotBlank() && textContent.isNotBlank()
-            ) {
-                Text("Submit Post")
-            }
-        }
-    }
-}
-
-@Composable
 fun RecipeBooksScreen(
     modifier: Modifier = Modifier,
     mainViewModel: MainViewModel,
@@ -666,7 +535,18 @@ fun RecipeBooksScreen(
                     contentPadding = PaddingValues(16.dp)
                 ) {
                     items(recipeBooks) { book ->
-                        RecipeBookCard(book = book, onClick = { selectedBookId = book.id })
+                        RecipeBookCard(
+                            book = book,
+                            isOwnProfile = true,
+                            onDelete = {
+                                mainViewModel.deleteRecipeBook(book.id) { success ->
+                                    if (!success) {
+                                        // Handle failure if needed
+                                    }
+                                }
+                            },
+                            onClick = { selectedBookId = book.id }
+                        )
                     }
                 }
             }
@@ -705,8 +585,36 @@ fun RecipeBooksScreen(
 @Composable
 fun RecipeBookCard(
     book: RecipeBook,
+    isOwnProfile: Boolean = false,
+    onDelete: () -> Unit = {},
     onClick: () -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Recipe Book") },
+            text = { Text("Are you sure you want to delete '${book.name}'?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -721,16 +629,27 @@ fun RecipeBookCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = book.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "${book.recipes.size} recipes",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = book.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${book.recipes.size} recipes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (isOwnProfile) {
+                IconButton(onClick = { showDeleteDialog = true }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete book",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }
@@ -790,6 +709,7 @@ fun AddToBookDialog(
     onAddToBook: (RecipeBook) -> Unit,
     onCreateNewBook: () -> Unit
 ) {
+    // recipe is unused but may be used in future or required by caller
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add to Recipe Book") },
@@ -856,11 +776,13 @@ fun FeedCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.clickable { onUserClick(recipe.owner) }
             ) {
-                Box(
+                ImageFromBytes(
+                    data = recipe.owner.profilePictureData,
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentDescription = "Profile picture"
                 )
                 Column {
                     Text(
@@ -914,6 +836,24 @@ fun FeedCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                if (recipe.images.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(recipe.images.toList()) { image ->
+                            ImageFromBytes(
+                                data = image.data,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentDescription = "Recipe image"
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = recipe.textContent,
                     style = MaterialTheme.typography.bodyMedium,

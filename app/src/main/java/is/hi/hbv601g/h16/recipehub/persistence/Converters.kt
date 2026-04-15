@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import `is`.hi.hbv601g.h16.recipehub.model.Recipe
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -11,6 +12,9 @@ class Converters {
     private val moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
     private val setStringAdapter = moshi.adapter<Set<String>>(
         Types.newParameterizedType(Set::class.java, String::class.java)
+    )
+    private val setRecipeImageAdapter = moshi.adapter<Set<Recipe.RecipeImage>>(
+        Types.newParameterizedType(Set::class.java, Recipe.RecipeImage::class.java)
     )
 
     @TypeConverter
@@ -41,5 +45,15 @@ class Converters {
     @TypeConverter
     fun stringSetToString(set: Set<String>?): String? {
         return setStringAdapter.toJson(set)
+    }
+
+    @TypeConverter
+    fun fromRecipeImageSet(value: String?): Set<Recipe.RecipeImage>? {
+        return value?.let { setRecipeImageAdapter.fromJson(it) }
+    }
+
+    @TypeConverter
+    fun recipeImageSetToString(set: Set<Recipe.RecipeImage>?): String? {
+        return setRecipeImageAdapter.toJson(set)
     }
 }

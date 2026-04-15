@@ -1,5 +1,6 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,13 +13,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -49,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import `is`.hi.hbv601g.h16.recipehub.domain.service.AuthService
@@ -73,6 +79,7 @@ fun RecipeDetailScreen(
     val scope = rememberCoroutineScope()
 
     var showEditRecipeDialog by remember { mutableStateOf(false) }
+    var showDeleteRecipeDialog by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
 
     // load comments when the screen first opens
@@ -102,6 +109,40 @@ fun RecipeDetailScreen(
         )
     }
 
+    if (showDeleteRecipeDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteRecipeDialog = false },
+            title = { Text("Delete Recipe") },
+            text = { Text("Are you sure you want to delete this recipe? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        mainViewModel.deleteRecipe(recipe.id) { success ->
+                            showDeleteRecipeDialog = false
+                            if (success) {
+                                onBack()
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Failed to delete recipe")
+                                }
+                            }
+                        }
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteRecipeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -116,6 +157,9 @@ fun RecipeDetailScreen(
                     if (isOwner) {
                         IconButton(onClick = { showEditRecipeDialog = true }) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit recipe")
+                        }
+                        IconButton(onClick = { showDeleteRecipeDialog = true }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete recipe", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -179,13 +223,47 @@ fun RecipeDetailScreen(
         ) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "by ${recipe.owner.userName}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.clickable { onUserClick(recipe.owner) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                ) {
+                    ImageFromBytes(
+                        data = recipe.owner.profilePictureData,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentDescription = "Profile picture"
+                    )
+                    Text(
+                        text = "by ${recipe.owner.userName}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (recipe.images.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(recipe.images.toList()) { image ->
+                            ImageFromBytes(
+                                data = image.data,
+                                modifier = Modifier
+                                    .height(240.dp)
+                                    .width(320.dp)
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentDescription = "Recipe image"
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Text(
                     text = recipe.textContent,
                     style = MaterialTheme.typography.bodyLarge
@@ -235,6 +313,18 @@ fun RecipeDetailScreen(
                                 }
                             }
                         },
+                        onDeleteConfirm = {
+                            mainViewModel.deleteComment(
+                                recipeId = recipe.id,
+                                commentId = comment.id!!
+                            ) { success ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (success) "Comment deleted!" else "Delete failed, please try again"
+                                    )
+                                }
+                            }
+                        },
                         onUserClick = onUserClick
                     )
                 }
@@ -250,11 +340,13 @@ fun CommentItem(
     comment: Comment,
     canEdit: Boolean,
     onEditConfirm: (String) -> Unit,
+    onDeleteConfirm: () -> Unit,
     onUserClick: (User) -> Unit = {}
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
     var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (showEditDialog) {
         EditCommentDialog(
@@ -263,6 +355,32 @@ fun CommentItem(
             onConfirm = { newText ->
                 showEditDialog = false
                 onEditConfirm(newText)
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Comment") },
+            text = { Text("Are you sure you want to delete this comment?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteConfirm()
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -278,6 +396,15 @@ fun CommentItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.Top
         ) {
+            ImageFromBytes(
+                data = comment.owner.profilePictureData,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentDescription = "Profile picture"
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = comment.owner.userName,
@@ -306,6 +433,13 @@ fun CommentItem(
                             onClick = {
                                 menuExpanded = false
                                 showEditDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteDialog = true
                             }
                         )
                     }

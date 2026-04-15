@@ -1,10 +1,13 @@
 package `is`.hi.hbv601g.h16.recipehub.domain.repository
 
+import android.util.Base64
 import android.util.Log
 import `is`.hi.hbv601g.h16.recipehub.model.User
 import `is`.hi.hbv601g.h16.recipehub.network.NetworkModule
 import `is`.hi.hbv601g.h16.recipehub.network.dto.UserRequestDTO
 import `is`.hi.hbv601g.h16.recipehub.network.dto.UserResponseDTO
+import `is`.hi.hbv601g.h16.recipehub.persistence.PersistenceModule
+import `is`.hi.hbv601g.h16.recipehub.persistence.toEntity
 import java.util.UUID
 
 class UserRepository {
@@ -37,12 +40,21 @@ class UserRepository {
         }
     }
 
-    suspend fun updateUser(userUuid: UUID, bio: String?, profilePictureUrl: String?): User? {
-        val request = UserRequestDTO(profilePictureUrl, bio)
+    suspend fun updateUser(userUuid: UUID, bio: String?, profilePictureData: ByteArray?, profilePictureType: String?): User? {
+        val request = UserRequestDTO(
+            profilePictureData = profilePictureData?.let { Base64.encodeToString(it, Base64.NO_WRAP) },
+            profilePictureType = profilePictureType,
+            bio = bio
+        )
         return try {
             val response = NetworkModule.apiService.updateUser(userUuid, request)
             if (response.isSuccessful) {
-                response.body()?.let { mapToModel(it) }
+                val user = response.body()?.let { mapToModel(it) }
+                if (user != null) {
+                    PersistenceModule.userDao.insertUser(user.toEntity())
+                }
+
+                return user
             } else null
         } catch (e: Exception) {
             Log.e(TAG, "Error updating user", e)
@@ -64,7 +76,12 @@ class UserRepository {
         return try {
             val response = NetworkModule.apiService.followUser(userUuid)
             if (response.isSuccessful) {
-                response.body()?.let { mapToModel(it) }
+                val user = response.body()?.let { mapToModel(it) }
+                if (user != null) {
+                    PersistenceModule.userDao.insertUser(user.toEntity())
+                }
+
+                return user
             } else null
         } catch (e: Exception) {
             Log.e(TAG, "Error following user", e)
@@ -76,7 +93,12 @@ class UserRepository {
         return try {
             val response = NetworkModule.apiService.unfollowUser(userUuid)
             if (response.isSuccessful) {
-                response.body()?.let { mapToModel(it) }
+                val user = response.body()?.let { mapToModel(it) }
+                if (user != null) {
+                    PersistenceModule.userDao.insertUser(user.toEntity())
+                }
+
+                return user
             } else null
         } catch (e: Exception) {
             Log.e(TAG, "Error unfollowing user", e)
@@ -88,7 +110,8 @@ class UserRepository {
         return User(
             id = dto.id,
             userName = dto.userName,
-            profilePictureURL = dto.profilePictureUrl ?: "",
+            profilePictureData = dto.profilePictureData?.let { Base64.decode(it, Base64.NO_WRAP) },
+            profilePictureType = dto.profilePictureType,
             bio = dto.bio ?: "",
             isBanned = dto.isBanned,
             isAdmin = dto.isAdmin,

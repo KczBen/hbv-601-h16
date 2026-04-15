@@ -8,11 +8,34 @@ data class RecipeResponseDTO(
     val ownerId: UUID,
     val title: String,
     val textContent: String,
-    val imageUrls: Set<String>,
+    val images: Set<RecipeImageResponseDTO>?,
     val creationDate: LocalDateTime?,
     val editDate: LocalDateTime?,
     val likes: Int,
     val rating: Float,
     val ratingCount: Long?,
     val categories: Set<CategoryResponseDTO>
-)
+) {
+    data class RecipeImageResponseDTO(
+        val data: String,
+        val imageType: String
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as RecipeImageResponseDTO
+
+            if (data != other.data) return false
+            if (imageType != other.imageType) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = data.hashCode()
+            result = 31 * result + imageType.hashCode()
+            return result
+        }
+    }
+}

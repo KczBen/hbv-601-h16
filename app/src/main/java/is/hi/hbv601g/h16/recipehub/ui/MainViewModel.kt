@@ -195,6 +195,16 @@ class MainViewModel(
         }
     }
 
+    fun deleteRecipeBook(bookId: UUID, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = recipeBookService.deleteRecipeBook(bookId)
+            if (success) {
+                recipeBooks = recipeBooks.filter { it.id != bookId }
+            }
+            onResult(success)
+        }
+    }
+
     fun followUser(userId: UUID, onResult: (User?) -> Unit) {
         viewModelScope.launch {
             val result = userService.followUser(userId)
@@ -278,12 +288,33 @@ class MainViewModel(
         }
     }
 
+    fun deleteComment(recipeId: UUID, commentId: UUID, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = commentService.deleteComment(recipeId, commentId)
+            if (success) {
+                comments = comments.filter { it.id != commentId }
+            }
+            onResult(success)
+        }
+    }
+
     fun updateRecipe(recipe: Recipe, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val success = recipeService.modifyRecipe(recipe)
             if (success) {
                 // Update the recipe in our local list so the UI updates instantly
                 recipes = recipes.map { if (it.id == recipe.id) recipe else it }
+            }
+            onResult(success)
+        }
+    }
+
+    fun deleteRecipe(recipeId: UUID, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val recipe = recipes.find { it.id == recipeId } ?: return@launch
+            val success = recipeService.deleteRecipe(recipe)
+            if (success) {
+                recipes = recipes.filter { it.id != recipeId }
             }
             onResult(success)
         }

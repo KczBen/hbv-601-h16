@@ -1,5 +1,8 @@
 package `is`.hi.hbv601g.h16.recipehub.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,13 +17,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -53,6 +60,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,15 +101,16 @@ fun UserScreen(
     var displayedUser by remember { mutableStateOf(profileUser) }
 
     var userRecipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+    // Reactive filtering based on the mainViewModel.recipes list
+    val filteredUserRecipes = remember(mainViewModel.recipes, profileUser.id) {
+        mainViewModel.recipes.filter { it.owner.id == profileUser.id }
+    }
+
     LaunchedEffect(profileUser.id) {
         profileUser.id.let { uid ->
             mainViewModel.fetchRecipeBooks(uid)
-            // filter the global recipe list for this user's recipes
-            userRecipes = mainViewModel.recipes.filter { it.owner.id == uid }
-            if (userRecipes.isEmpty()) {
-                // recipes not cached yet - fetch all and filter
+            if (mainViewModel.recipes.none { it.owner.id == uid }) {
                 mainViewModel.fetchRecipes()
-                userRecipes = mainViewModel.recipes.filter { it.owner.id == uid }
             }
         }
     }
@@ -144,15 +154,16 @@ fun UserScreen(
     if (showEditProfileDialog) {
         EditProfileDialog(
             currentBio = displayedUser.bio,
-            currentPictureUrl = displayedUser.profilePictureURL,
+            currentPictureData = displayedUser.profilePictureData,
             onDismiss = { showEditProfileDialog = false },
-            onConfirm = { newBio, newPicUrl ->
+            onConfirm = { newBio, newData, newType ->
                 showEditProfileDialog = false
                 scope.launch {
                     val updated = mainViewModel.userService.updateUser(
                         id = displayedUser.id,
                         bio = newBio,
-                        profilePictureUrl = newPicUrl.ifBlank { null }
+                        profilePictureData = newData,
+                        profilePictureType = newType
                     )
                     if (updated != null) {
                         displayedUser = updated   // update the UI
@@ -198,13 +209,13 @@ fun UserScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // avatar
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Profile picture",
+                ImageFromBytes(
+                    data = displayedUser.profilePictureData,
                     modifier = Modifier
                         .size(96.dp)
-                        .clip(CircleShape),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentDescription = "Profile picture"
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -239,7 +250,7 @@ fun UserScreen(
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    StatColumn(label = "Recipes", count = userRecipes.size)
+                    StatColumn(label = "Recipes", count = filteredUserRecipes.size)
                     StatColumn(label = "Followers", count = displayedUser.followers.size)
                     StatColumn(label = "Following", count = displayedUser.following.size)
                 }
@@ -304,7 +315,7 @@ fun UserScreen(
 
                 // recipes tab
                 0 -> {
-                    if (userRecipes.isEmpty()) {
+                    if (filteredUserRecipes.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -321,7 +332,7 @@ fun UserScreen(
                             }
                         }
                     } else {
-                        items(userRecipes) { recipe ->
+                        items(filteredUserRecipes) { recipe ->
                             ProfileRecipeCard(
                                 recipe = recipe,
                                 onClick = { onRecipeClick(recipe) }
@@ -355,6 +366,16 @@ fun UserScreen(
                         items(books) { book ->
                             RecipeBookCard(
                                 book = book,
+                                isOwnProfile = isOwnProfile,
+                                onDelete = {
+                                    mainViewModel.deleteRecipeBook(book.id) { success ->
+                                        if (!success) {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("Failed to delete recipe book")
+                                            }
+                                        }
+                                    }
+                                },
                                 // RecipeBookCard exists in MainActivity.kt
                                 onClick = {}
                             )
@@ -403,6 +424,25 @@ private fun ProfileRecipeCard(recipe: Recipe, onClick: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
+
+            if (recipe.images.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(recipe.images.toList()) { image ->
+                        ImageFromBytes(
+                            data = image.data,
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentDescription = "Recipe image"
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
             Text(
                 text = recipe.textContent,
                 style = MaterialTheme.typography.bodySmall,
@@ -417,18 +457,60 @@ private fun ProfileRecipeCard(recipe: Recipe, onClick: () -> Unit) {
 @Composable
 fun EditProfileDialog(
     currentBio: String,
-    currentPictureUrl: String,
+    currentPictureData: ByteArray?,
     onDismiss: () -> Unit,
-    onConfirm: (bio: String, pictureUrl: String) -> Unit
+    onConfirm: (bio: String, pictureData: ByteArray?, pictureType: String?) -> Unit
 ) {
     var bio by remember { mutableStateOf(currentBio) }
-    var pictureUrl by remember { mutableStateOf(currentPictureUrl) }
+    var pictureData by remember { mutableStateOf(currentPictureData) }
+    var pictureType by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            val bytes = inputStream?.readBytes()
+            val type = context.contentResolver.getType(it) ?: "image/jpeg"
+            if (bytes != null) {
+                pictureData = bytes
+                pictureType = type
+            }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit Profile") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable { imagePickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (pictureData != null) {
+                        ImageFromBytes(
+                            data = pictureData,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.AddPhotoAlternate,
+                            contentDescription = "Change picture",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
@@ -437,19 +519,10 @@ fun EditProfileDialog(
                     minLines = 3,
                     supportingText = { Text("Tell others a bit about yourself") }
                 )
-                // do we want to have a link or open photo gallery?
-                OutlinedTextField(
-                    value = pictureUrl,
-                    onValueChange = { pictureUrl = it },
-                    label = { Text("Profile picture URL") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    supportingText = { Text("Paste a link to an image") }
-                )
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(bio, pictureUrl) }) {
+            Button(onClick = { onConfirm(bio, pictureData, pictureType) }) {
                 Text("Save")
             }
         },
