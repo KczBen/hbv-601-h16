@@ -75,19 +75,19 @@ class MainViewModel(
 
     fun isLiked(recipeId: UUID): Boolean = likedRecipeIds.contains(recipeId)
 
-    fun toggleLike(recipeId: UUID) {
+    fun toggleLike(recipe: Recipe) {
         viewModelScope.launch {
-            if (likedRecipeIds.contains(recipeId)) {
-                val result = likeService.unlikeRecipe(recipeId)
+            if (likedRecipeIds.contains(recipe.id)) {
+                val result = likeService.unlikeRecipe(recipe)
                 if (result != null) {
-                    likedRecipeIds.remove(recipeId)
+                    likedRecipeIds.remove(recipe.id)
                     // update the recipe in the list to reflect new like count
                     updateRecipeInList(result)
                 }
             } else {
-                val result = likeService.likeRecipe(recipeId)
+                val result = likeService.likeRecipe(recipe)
                 if (result != null) {
-                    likedRecipeIds.add(recipeId)
+                    likedRecipeIds.add(recipe.id)
                     // update the recipe in the list to reflect new like count
                     updateRecipeInList(result)
                 }

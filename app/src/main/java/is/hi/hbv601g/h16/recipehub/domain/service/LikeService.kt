@@ -14,11 +14,11 @@ class LikeService {
         likeRepository.getLikesForRecipe(recipeUuid)
     }
 
-    suspend fun likeRecipe(recipeUuid: UUID): Recipe? = withContext(Dispatchers.IO) {
-        likeRepository.likeRecipe(recipeUuid)
+    suspend fun likeRecipe(recipe: Recipe): Recipe? = withContext(Dispatchers.IO) {
+        likeRepository.likeRecipe(recipe)
     }
 
-    suspend fun unlikeRecipe(recipeUuid: UUID): Recipe? = withContext(Dispatchers.IO) {
-        likeRepository.unlikeRecipe(recipeUuid)
+    suspend fun unlikeRecipe(recipe: Recipe): Recipe? = withContext(Dispatchers.IO) {
+        likeRepository.unlikeRecipe(recipe)
     }
 }

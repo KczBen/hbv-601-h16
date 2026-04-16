@@ -422,7 +422,7 @@ fun FeedScreen(
             FeedCard(
                 recipe = r,
                 isLiked = mainViewModel.isLiked(r.id),
-                onLikeClick = { mainViewModel.toggleLike(r.id) },
+                onLikeClick = { mainViewModel.toggleLike(r) },
                 onCommentClick = { onCommentClick(r) },
                 onSaveClick = { onSaveClick(r) },
                 onUserClick = onUserClick,
@@ -522,7 +522,7 @@ fun SearchScreen(
                 FeedCard(
                     recipe = r,
                     isLiked = mainViewModel.isLiked(r.id),
-                    onLikeClick = { mainViewModel.toggleLike(r.id) },
+                    onLikeClick = { mainViewModel.toggleLike(r) },
                     onCommentClick = { onRecipeClick(r) },
                     onSaveClick = { onSaveClick(r) },
                     onUserClick = onUserClick,
@@ -609,7 +609,7 @@ fun RecipeBooksScreen(
                         FeedCard(
                             recipe = recipe,
                             isLiked = mainViewModel.isLiked(recipe.id),
-                            onLikeClick = { mainViewModel.toggleLike(recipe.id) },
+                            onLikeClick = { mainViewModel.toggleLike(recipe) },
                             onCommentClick = { onRecipeClick(recipe) },
                             onSaveClick = { onSaveClick(recipe) },
                             onUserClick = onUserClick,
