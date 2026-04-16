@@ -26,13 +26,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,13 +43,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,13 +81,10 @@ fun RecipeDetailScreen(
     onUserClick: (User) -> Unit = {}
 ) {
     val currentUser = AuthService.currentUser
-    val isOwner = currentUser?.id == recipe.owner.id
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    var showEditRecipeDialog by remember { mutableStateOf(false) }
-    var showDeleteRecipeDialog by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
     val selectedCommentImages = remember { mutableStateListOf<Pair<ByteArray, String>>() }
 
@@ -152,10 +144,10 @@ fun RecipeDetailScreen(
         mainViewModel.fetchComments(recipe.id)
     }
 
-    if (showEditRecipeDialog) {
+    if (mainViewModel.showEditRecipeDialog) {
         EditRecipeDialog(
             recipe = recipe,
-            onDismiss = { showEditRecipeDialog = false },
+            onDismiss = { mainViewModel.showEditRecipeDialog = false },
             onConfirm = { updatedTitle, updatedText, updatedImages ->
                 val updatedRecipe = recipe.copy(
                     title = updatedTitle,
@@ -164,7 +156,7 @@ fun RecipeDetailScreen(
                     editDate = LocalDateTime.now()
                 )
                 mainViewModel.updateRecipe(updatedRecipe) { success ->
-                    showEditRecipeDialog = false
+                    mainViewModel.showEditRecipeDialog = false
                     scope.launch {
                         snackbarHostState.showSnackbar(
                             if (success) "Recipe updated!" else "Update failed, please try again"
@@ -175,16 +167,16 @@ fun RecipeDetailScreen(
         )
     }
 
-    if (showDeleteRecipeDialog) {
+    if (mainViewModel.showDeleteRecipeDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteRecipeDialog = false },
+            onDismissRequest = { mainViewModel.showDeleteRecipeDialog = false },
             title = { Text("Delete Recipe") },
             text = { Text("Are you sure you want to delete this recipe? This action cannot be undone.") },
             confirmButton = {
                 Button(
                     onClick = {
                         mainViewModel.deleteRecipe(recipe.id) { success ->
-                            showDeleteRecipeDialog = false
+                            mainViewModel.showDeleteRecipeDialog = false
                             if (success) {
                                 onBack()
                             } else {
@@ -202,183 +194,21 @@ fun RecipeDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteRecipeDialog = false }) {
+                TextButton(onClick = { mainViewModel.showDeleteRecipeDialog = false }) {
                     Text("Cancel")
                 }
             }
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(recipe.title, maxLines = 1) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (isOwner) {
-                        IconButton(onClick = { showEditRecipeDialog = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit recipe")
-                        }
-                    }
-                    if (isOwner || currentUser?.isAdmin == true) {
-                        IconButton(onClick = { showDeleteRecipeDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete recipe", tint = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            if (currentUser != null) {
-                Surface(
-                    tonalElevation = 3.dp,
-                    shadowElevation = 8.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .imePadding()
-                    ) {
-                        if (selectedCommentImages.isNotEmpty()) {
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(selectedCommentImages) { pair ->
-                                    val (data, type) = pair
-                                    Box {
-                                        ImageFromBytes(
-                                            data = data,
-                                            modifier = Modifier
-                                                .size(60.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        IconButton(
-                                            onClick = { selectedCommentImages.remove(pair) },
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .size(20.dp)
-                                                .background(
-                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                                                    CircleShape
-                                                )
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove",
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            var showImageSourceMenu by remember { mutableStateOf(false) }
-                            Box {
-                                IconButton(onClick = { showImageSourceMenu = true }) {
-                                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add image")
-                                }
-                                DropdownMenu(
-                                    expanded = showImageSourceMenu,
-                                    onDismissRequest = { showImageSourceMenu = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Gallery") },
-                                        onClick = {
-                                            showImageSourceMenu = false
-                                            imagePickerLauncher.launch("image/*")
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.AddPhotoAlternate, null) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Camera") },
-                                        onClick = {
-                                            showImageSourceMenu = false
-                                            when (PackageManager.PERMISSION_GRANTED) {
-                                                ContextCompat.checkSelfPermission(
-                                                    context,
-                                                    Manifest.permission.CAMERA
-                                                ) -> {
-                                                    val uri = createImageUri()
-                                                    tempImageUri = uri
-                                                    cameraLauncher.launch(uri)
-                                                }
-                                                else -> {
-                                                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                                                }
-                                            }
-                                        },
-                                        leadingIcon = { Icon(Icons.Default.CameraAlt, null) }
-                                    )
-                                }
-                            }
-
-                            OutlinedTextField(
-                                value = commentText,
-                                onValueChange = { commentText = it },
-                                placeholder = { Text("Write a comment...") },
-                                modifier = Modifier.weight(1f),
-                                maxLines = 4,
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            IconButton(
-                                onClick = {
-                                    if (commentText.isNotBlank()) {
-                                        mainViewModel.createComment(
-                                            recipe.id,
-                                            commentText,
-                                            selectedCommentImages.map { (data, type) ->
-                                                Comment.CommentImage(data, type)
-                                            }.toSet()
-                                        ) { success ->
-                                            if (success) {
-                                                commentText = ""
-                                                selectedCommentImages.clear()
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Comment posted!")
-                                                }
-                                            } else {
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Failed to post comment")
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                enabled = commentText.isNotBlank()
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -493,7 +323,150 @@ fun RecipeDetailScreen(
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
+
+    if (currentUser != null) {
+        Surface(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            tonalElevation = 3.dp,
+            shadowElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                if (selectedCommentImages.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(selectedCommentImages) { pair ->
+                            val (data, _) = pair
+                            Box {
+                                ImageFromBytes(
+                                    data = data,
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                )
+                                IconButton(
+                                    onClick = { selectedCommentImages.remove(pair) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(20.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove",
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    var showImageSourceMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showImageSourceMenu = true }) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Add image")
+                        }
+                        DropdownMenu(
+                            expanded = showImageSourceMenu,
+                            onDismissRequest = { showImageSourceMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Gallery") },
+                                onClick = {
+                                    showImageSourceMenu = false
+                                    imagePickerLauncher.launch("image/*")
+                                },
+                                leadingIcon = { Icon(Icons.Default.AddPhotoAlternate, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Camera") },
+                                onClick = {
+                                    showImageSourceMenu = false
+                                    when (PackageManager.PERMISSION_GRANTED) {
+                                        ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.CAMERA
+                                        ) -> {
+                                            val uri = createImageUri()
+                                            tempImageUri = uri
+                                            cameraLauncher.launch(uri)
+                                        }
+                                        else -> {
+                                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                                        }
+                                    }
+                                },
+                                leadingIcon = { Icon(Icons.Default.CameraAlt, null) }
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = commentText,
+                        onValueChange = { commentText = it },
+                        placeholder = { Text("Write a comment...") },
+                        modifier = Modifier.weight(1f),
+                        maxLines = 4,
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(
+                        onClick = {
+                            if (commentText.isNotBlank()) {
+                                mainViewModel.createComment(
+                                    recipe.id,
+                                    commentText,
+                                    selectedCommentImages.map { (data, type) ->
+                                        Comment.CommentImage(data, type)
+                                    }.toSet()
+                                ) { success ->
+                                    if (success) {
+                                        commentText = ""
+                                        selectedCommentImages.clear()
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Comment posted!")
+                                        }
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Failed to post comment")
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        enabled = commentText.isNotBlank()
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    }
+                }
+            }
+        }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
 }
+}
+
 
 @Composable
 fun CommentItem(

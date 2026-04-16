@@ -54,6 +54,14 @@ class MainViewModel(
     var isLoading by mutableStateOf(false)
         private set
 
+    // UI state for dialogs triggered from AppHeader
+    var showEditRecipeDialog by mutableStateOf(false)
+    var showDeleteRecipeDialog by mutableStateOf(false)
+    var showEditProfileDialog by mutableStateOf(false)
+
+    var currentRecipe by mutableStateOf<Recipe?>(null)
+    var currentProfileUser by mutableStateOf<User?>(null)
+
     init {
         viewModelScope.launch {
             if (authService.tryAutoLogin()) {
