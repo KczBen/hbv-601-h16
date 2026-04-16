@@ -13,8 +13,8 @@ class Converters {
     private val setStringAdapter = moshi.adapter<Set<String>>(
         Types.newParameterizedType(Set::class.java, String::class.java)
     )
-    private val setRecipeImageAdapter = moshi.adapter<Set<Recipe.RecipeImage>>(
-        Types.newParameterizedType(Set::class.java, Recipe.RecipeImage::class.java)
+    private val setPersistedRecipeImageAdapter = moshi.adapter<Set<PersistedRecipeImage>>(
+        Types.newParameterizedType(Set::class.java, PersistedRecipeImage::class.java)
     )
 
     @TypeConverter
@@ -48,12 +48,12 @@ class Converters {
     }
 
     @TypeConverter
-    fun fromRecipeImageSet(value: String?): Set<Recipe.RecipeImage>? {
-        return value?.let { setRecipeImageAdapter.fromJson(it) }
+    fun fromPersistedRecipeImageSet(value: String?): Set<PersistedRecipeImage>? {
+        return value?.let { setPersistedRecipeImageAdapter.fromJson(it) }
     }
 
     @TypeConverter
-    fun recipeImageSetToString(set: Set<Recipe.RecipeImage>?): String? {
-        return setRecipeImageAdapter.toJson(set)
+    fun persistedRecipeImageSetToString(set: Set<PersistedRecipeImage>?): String? {
+        return setPersistedRecipeImageAdapter.toJson(set)
     }
 }

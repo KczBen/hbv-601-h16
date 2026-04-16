@@ -79,12 +79,10 @@ import `is`.hi.hbv601g.h16.recipehub.model.User
 import kotlinx.coroutines.launch
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserScreen(
     profileUser: User,
     mainViewModel: MainViewModel,
-    onBack: () -> Unit,
     onRecipeClick: (Recipe) -> Unit = {}
 ) {
     val currentUser = AuthService.currentUser
@@ -103,9 +101,6 @@ fun UserScreen(
 
     // controls the unfollow confirmation dialog
     var showUnfollowDialog by remember { mutableStateOf(false) }
-
-    // controls the edit profile dialog - own profile
-    var showEditProfileDialog by remember { mutableStateOf(false) }
 
     var displayedUser by remember { mutableStateOf(profileUser) }
 
@@ -160,13 +155,13 @@ fun UserScreen(
         )
     }
 
-    if (showEditProfileDialog) {
+    if (mainViewModel.showEditProfileDialog) {
         EditProfileDialog(
             currentBio = displayedUser.bio,
             currentPictureData = displayedUser.profilePictureData,
-            onDismiss = { showEditProfileDialog = false },
+            onDismiss = { mainViewModel.showEditProfileDialog = false },
             onConfirm = { newBio, newData, newType ->
-                showEditProfileDialog = false
+                mainViewModel.showEditProfileDialog = false
                 scope.launch {
                     val updated = mainViewModel.userService.updateUser(
                         id = displayedUser.id,
@@ -186,31 +181,10 @@ fun UserScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(if (isOwnProfile) "My Profile" else displayedUser.userName) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    // edit button - only visible on own profile
-                    if (isOwnProfile) {
-                        IconButton(onClick = { showEditProfileDialog = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit profile")
-                        }
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
@@ -247,7 +221,7 @@ fun UserScreen(
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )
                 } else if (isOwnProfile) {
-                    TextButton(onClick = { showEditProfileDialog = true }) {
+                    TextButton(onClick = { mainViewModel.showEditProfileDialog = true }) {
                         Text("+ Add a bio")
                     }
                 }
@@ -395,6 +369,7 @@ fun UserScreen(
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

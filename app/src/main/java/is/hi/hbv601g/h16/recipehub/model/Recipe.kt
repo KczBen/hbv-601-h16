@@ -11,7 +11,7 @@ data class Recipe(
     val images: Set<RecipeImage> = setOf(),
     val creationDate: LocalDateTime = LocalDateTime.now(),
     val editDate: LocalDateTime = LocalDateTime.now(),
-    val likes: Set<Like> = setOf(),
+    var likes: Set<Like> = setOf(),
     val rating: Float = 0f,
     val ratingCount: Long = 0,
     val comments: Set<Comment> = setOf(),

@@ -42,7 +42,11 @@ fun RecipeEntity.toModel(owner: User, categories: Set<Category>): Recipe {
         owner = owner,
         title = title,
         textContent = textContent,
-        images = images,
+        images = imageInfos.mapNotNull { info ->
+            ImageFileStorage.loadImage(info.path)?.let { data ->
+                Recipe.RecipeImage(data, info.imageType)
+            }
+        }.toSet(),
         creationDate = creationDate,
         editDate = editDate,
         rating = rating,
@@ -57,7 +61,11 @@ fun Recipe.toEntity(): RecipeEntity {
         ownerId = owner.id,
         title = title,
         textContent = textContent,
-        images = images,
+        imageInfos = images.mapNotNull { image ->
+            ImageFileStorage.saveImage(image.data)?.let { path ->
+                PersistedRecipeImage(path, image.imageType)
+            }
+        }.toSet(),
         creationDate = creationDate,
         editDate = editDate,
         rating = rating,

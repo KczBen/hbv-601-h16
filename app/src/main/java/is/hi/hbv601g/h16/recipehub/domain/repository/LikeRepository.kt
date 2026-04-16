@@ -17,11 +17,13 @@ class LikeRepository {
 
     private val recipeRepository = RecipeRepository()
 
-    suspend fun likeRecipe(recipeUuid: UUID): Recipe? {
+    suspend fun likeRecipe(recipe: Recipe): Recipe? {
         return try {
-            val response = NetworkModule.apiService.likeRecipe(recipeUuid)
+            val response = NetworkModule.apiService.likeRecipe(recipe.id)
             if (response.isSuccessful) {
-                response.body()?.let { recipeRepository.mapToModel(it) }
+                val resp = response.body()?.let { recipeRepository.mapToModel(it) }
+                recipe.likes = resp!!.likes
+                return recipe
             } else null
         } catch (e: Exception) {
             Log.e(TAG, "Error liking recipe", e)
@@ -29,11 +31,13 @@ class LikeRepository {
         }
     }
 
-    suspend fun unlikeRecipe(recipeUuid: UUID): Recipe? {
+    suspend fun unlikeRecipe(recipe: Recipe): Recipe? {
         return try {
-            val response = NetworkModule.apiService.unlikeRecipe(recipeUuid)
+            val response = NetworkModule.apiService.unlikeRecipe(recipe.id)
             if (response.isSuccessful) {
-                response.body()?.let { recipeRepository.mapToModel(it) }
+                val resp = response.body()?.let { recipeRepository.mapToModel(it) }
+                recipe.likes = resp!!.likes
+                return recipe
             } else null
         } catch (e: Exception) {
             Log.e(TAG, "Error unliking recipe", e)

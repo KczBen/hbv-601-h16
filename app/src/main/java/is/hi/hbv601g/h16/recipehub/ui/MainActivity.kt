@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
@@ -203,26 +204,57 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 Column {
-                    val isViewingOwnProfile = currentRoute == "USER_PROFILE/{userId}" &&
-                            navBackStackEntry?.arguments?.getString("userId") == AuthService.currentUser?.id?.toString()
+                    val isHome = currentRoute == AppDestinations.HOME.name
+                    val isSearch = currentRoute == AppDestinations.SEARCH.name
+                    val isBooks = currentRoute == AppDestinations.RECIPE_BOOKS.name
+                    val isDetail = currentRoute?.startsWith("RECIPE_DETAIL") == true
+                    val isProfile = currentRoute?.startsWith("USER_PROFILE") == true
+                    val isCreatePost = currentRoute == "CREATE_POST"
+
+                    val currentUser = AuthService.currentUser
+                    val userIdStr = navBackStackEntry?.arguments?.getString("userId")
+                    val isOwnProfile = isProfile && userIdStr == currentUser?.id?.toString()
+
+                    val currentRecipe = mainViewModel.currentRecipe
+                    val isRecipeOwner = currentRecipe?.owner?.id == currentUser?.id
+                    val canDeleteRecipe = isRecipeOwner || currentUser?.isAdmin == true
 
                     AppHeader(
+                        title = when {
+                            isDetail -> currentRecipe?.title ?: "Recipe"
+                            isProfile -> if (isOwnProfile) "My Profile" else (mainViewModel.currentProfileUser?.userName ?: "Profile")
+                            isCreatePost -> "Create Post"
+                            isSearch -> "Search"
+                            isBooks -> "Recipe Books"
+                            else -> "RecipeHub"
+                        },
+                        showBack = isDetail || (isProfile && !isOwnProfile) || isCreatePost,
+                        onBack = { navController.popBackStack() },
+                        showProfile = isHome || isBooks,
                         onProfileClick = {
-                            val myId = AuthService.currentUser?.id
+                            val myId = currentUser?.id
                             if (myId != null) {
                                 navController.navigate("USER_PROFILE/$myId")
                             } else {
                                 context.startActivity(Intent(context, AuthActivity::class.java))
                             }
                         },
-                        onLogoutClick = if (isViewingOwnProfile) {
-                            {
-                                mainViewModel.logout()
-                                navController.navigate(AppDestinations.HOME.name) {
-                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                                }
+                        showLogout = isOwnProfile,
+                        onLogoutClick = {
+                            mainViewModel.logout()
+                            navController.navigate(AppDestinations.HOME.name) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
                             }
-                        } else null
+                        },
+                        showEdit = (isDetail && isRecipeOwner) || isOwnProfile,
+                        onEditClick = {
+                            if (isDetail) mainViewModel.showEditRecipeDialog = true
+                            else if (isOwnProfile) mainViewModel.showEditProfileDialog = true
+                        },
+                        showDelete = isDetail && canDeleteRecipe,
+                        onDeleteClick = {
+                            if (isDetail) mainViewModel.showDeleteRecipeDialog = true
+                        }
                     )
                     if (mainViewModel.isLoading) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -315,6 +347,11 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                     val recipeIdStr = backStackEntry.arguments?.getString("recipeId")
                     val recipeId = if (recipeIdStr != null) UUID.fromString(recipeIdStr) else null
                     val recipe = mainViewModel.recipes.find { it.id == recipeId }
+
+                    LaunchedEffect(recipe) {
+                        mainViewModel.currentRecipe = recipe
+                    }
+
                     if (recipe != null) {
                         RecipeDetailScreen(
                             recipe = recipe,
@@ -331,17 +368,20 @@ fun RecipeHubApp(mainViewModel: MainViewModel = viewModel()) {
                 composable("USER_PROFILE/{userId}") { backStackEntry ->
                     val userIdStr = backStackEntry.arguments?.getString("userId")
                     val userId = if (userIdStr != null) UUID.fromString(userIdStr) else null
-                    var profileUser by remember { mutableStateOf<User?>(null) }
+                    
                     LaunchedEffect(userId) {
                         if (userId != null) {
-                            profileUser = mainViewModel.userService.getUser((userId))
+                            val user = mainViewModel.userService.getUser((userId))
+                            mainViewModel.currentProfileUser = user
+                        } else {
+                            mainViewModel.currentProfileUser = null
                         }
                     }
-                    profileUser?.let {
+
+                    mainViewModel.currentProfileUser?.let {
                         UserScreen(
                             profileUser = it,
                             mainViewModel = mainViewModel,
-                            onBack = { navController.popBackStack() },
                             onRecipeClick = { recipe: Recipe ->
                                 navController.navigate("RECIPE_DETAIL/${recipe.id}")
                             }
@@ -382,7 +422,7 @@ fun FeedScreen(
             FeedCard(
                 recipe = r,
                 isLiked = mainViewModel.isLiked(r.id),
-                onLikeClick = { mainViewModel.toggleLike(r.id) },
+                onLikeClick = { mainViewModel.toggleLike(r) },
                 onCommentClick = { onCommentClick(r) },
                 onSaveClick = { onSaveClick(r) },
                 onUserClick = onUserClick,
@@ -482,7 +522,7 @@ fun SearchScreen(
                 FeedCard(
                     recipe = r,
                     isLiked = mainViewModel.isLiked(r.id),
-                    onLikeClick = { mainViewModel.toggleLike(r.id) },
+                    onLikeClick = { mainViewModel.toggleLike(r) },
                     onCommentClick = { onRecipeClick(r) },
                     onSaveClick = { onSaveClick(r) },
                     onUserClick = onUserClick,
@@ -569,7 +609,7 @@ fun RecipeBooksScreen(
                         FeedCard(
                             recipe = recipe,
                             isLiked = mainViewModel.isLiked(recipe.id),
-                            onLikeClick = { mainViewModel.toggleLike(recipe.id) },
+                            onLikeClick = { mainViewModel.toggleLike(recipe) },
                             onCommentClick = { onRecipeClick(recipe) },
                             onSaveClick = { onSaveClick(recipe) },
                             onUserClick = onUserClick,
@@ -896,26 +936,47 @@ private fun ActionButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppHeader(
-    onProfileClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onLogoutClick: (() -> Unit)? = null
+    title: String = "",
+    showBack: Boolean = false,
+    onBack: () -> Unit = {},
+    showProfile: Boolean = false,
+    onProfileClick: () -> Unit = {},
+    showLogout: Boolean = false,
+    onLogoutClick: () -> Unit = {},
+    showEdit: Boolean = false,
+    onEditClick: () -> Unit = {},
+    showDelete: Boolean = false,
+    onDeleteClick: () -> Unit = {}
 ) {
     TopAppBar(
-        title = {},
-        actions = {
-            if (onLogoutClick != null) {
-                IconButton(onClick = onLogoutClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Logout,
-                        contentDescription = "Logout"
-                    )
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        navigationIcon = {
+            if (showBack) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
-            } else {
+            }
+        },
+        actions = {
+            if (showEdit) {
+                IconButton(onClick = onEditClick) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                }
+            }
+            if (showDelete) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                }
+            }
+            if (showLogout) {
+                IconButton(onClick = onLogoutClick) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
+                }
+            }
+            if (showProfile) {
                 IconButton(onClick = onProfileClick) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Profile"
-                    )
+                    Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                 }
             }
         },
